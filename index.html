@@ -172,6 +172,21 @@ tr:last-child td{border-bottom:0}
 .prompt{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.3;margin:4px 0 22px}
 .playbox{margin-bottom:18px}
 .bubble{background:var(--card);border:1px solid var(--border);border-radius:16px 16px 16px 4px;padding:14px 16px}
+.rubtn{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-family:inherit;font-size:11px;font-weight:600;letter-spacing:.02em;
+  border:1px solid var(--border);background:var(--card);color:var(--muted);
+  border-radius:6px;padding:2px 7px;margin-left:4px;cursor:pointer;vertical-align:middle;
+}
+.rubtn.on{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.rublock{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);
+  padding:10px 12px;margin:8px 0 14px;
+}
+.rurow{padding:5px 0;border-bottom:1px solid var(--border)}
+.rurow:last-child{border-bottom:0}
+.rurow b{display:block;font-size:14.5px;font-weight:600;line-height:1.35}
+.rurow span{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.35}
 .steprow{
   display:flex;align-items:center;gap:11px;padding:11px 2px;
   border-top:1px solid var(--border);cursor:pointer;
@@ -2716,7 +2731,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.4";
+const BUILD="2026-09-04.5";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -2993,6 +3008,35 @@ function englishOf(el){
   c.querySelectorAll(".ru,.spk").forEach(x=>x.remove());
   return c.textContent.replace(/[\u0400-\u04FF]+/g," ").replace(/\s+/g," ").trim();
 }
+/* блоки-списки фраз: кнопка RU раскрывает перевод каждой фразы */
+function addTranslators(root){
+  root.querySelectorAll("p.en, p.small.en").forEach(el=>{
+    if(el.dataset.tr)return;
+    el.dataset.tr="1";
+    const raw=el.textContent.replace(/\s+/g," ").trim();
+    const parts=raw.split(/\s*[·•]\s*/).map(x=>x.trim()).filter(x=>x&&/[A-Za-z]{2}/.test(x));
+    if(!parts.length)return;
+    const btn=document.createElement("button");
+    btn.className="rubtn";btn.textContent="RU";
+    btn.onclick=e=>{
+      e.stopPropagation();
+      const open=el.nextElementSibling&&el.nextElementSibling.classList.contains("rublock");
+      if(open){el.nextElementSibling.remove();btn.classList.remove("on");return;}
+      const box=document.createElement("div");
+      box.className="rublock";
+      box.innerHTML=parts.map(pt=>{
+        const ru=phraseRu(pt);
+        const ww=ru?null:wordByWord(pt);
+        return '<div class="rurow"><b>'+esc(pt)+'</b><span>'+
+          (ru?esc(ru):(ww&&ww.length?esc(ww.join(" · ")):"нет перевода"))+'</span></div>';
+      }).join("");
+      el.parentNode.insertBefore(box,el.nextSibling);
+      btn.classList.add("on");
+    };
+    el.appendChild(document.createTextNode(" "));
+    el.appendChild(btn);
+  });
+}
 function addSpeakers(root){
   root.querySelectorAll(".ex").forEach(el=>{
     if(el.querySelector(":scope > .spk"))return;
@@ -3002,7 +3046,7 @@ function addSpeakers(root){
     el.appendChild(b);
   });
 }
-function decorate(){ttsify(app);addSpeakers(app);}
+function decorate(){ttsify(app);addSpeakers(app);addTranslators(app);}
 let sheetOpen=false;
 let EXPOOL=null;
 /* блок теории вида "A · B · C" с переводом "A' · B' · C'" режем на отдельные пары */
@@ -3086,12 +3130,42 @@ function openSheetHTML(html,wire){
   sheetOpen=true;sheet.classList.add("on");scrim.classList.add("on");
   if(wire)wire();
 }
-function openWord(word){
+/* фраза вокруг слова: режем текст блока по разделителям · и по знакам конца предложения */
+function phraseAround(el,word){
+  if(!el)return null;
+  const host=el.closest(".ex, .en, td, p, li, .formula, .warn, .qtext, .target, .bubble");
+  if(!host)return null;
+  const clone=host.cloneNode(true);
+  clone.querySelectorAll(".ru,.spk").forEach(x=>x.remove());
+  const text=clone.textContent.replace(/\s+/g," ").trim();
+  if(!text)return null;
+  const parts=text.split(/\s*[·•]\s*|(?<=[.!?])\s+(?=[A-Z"'\u2014])/).map(x=>x.trim()).filter(Boolean);
+  const w=String(word).toLowerCase();
+  let best=null;
+  parts.forEach(pt=>{
+    if(new RegExp("\\b"+w.replace(/[^a-z']/g,"")+"\\b","i").test(pt)){
+      if(!best||pt.length<best.length)best=pt;
+    }
+  });
+  const res=best||text;
+  return (res&&res.length>2&&res.split(" ").length>1)?res:null;
+}
+function openWord(word,el){
   const d=dictLook(word);
   const exs=findExamples(word,2);
+  const phrase=phraseAround(el,word);
+  const pru=phrase?phraseRu(phrase):null;
+  const pww=(phrase&&!pru)?wordByWord(phrase):[];
   sheet.innerHTML='<div class="grab"></div><div class="word">'+esc(word)+'</div>'+
     (d?'<div class="ipa">['+esc(d[1])+']</div><div class="rus">'+esc(d[2])+'</div><div class="tr">'+esc(d[0])+'</div>'
       :'<div class="miss">Этого слова нет в мини-словаре, но произношение работает.</div>')+
+    (phrase?'<div class="sx"><div class="small" style="margin-bottom:6px">Фраза целиком</div>'+
+      '<div class="sxi"><div class="sxe">'+esc(phrase)+
+      '<button class="spk" style="position:static;margin-left:8px" id="phSay">'+ICON.sound+'</button></div>'+
+      (pru?'<div class="sxr">'+esc(pru)+'</div>'
+          :(pww.length?'<div class="sxr">'+esc(pww.join(" · "))+'</div>'
+                      :'<div class="sxr">перевода этой фразы пока нет — тапни по отдельным словам</div>'))+
+      '</div></div>':"")+
     (exs.length?'<div class="sx">'+exs.map((e,i)=>
       '<div class="sxi"><div class="sxe">'+esc(e[0])+'<button class="spk" style="position:static;margin-left:8px" data-sx="'+i+'">'+ICON.sound+'</button></div>'+
       '<div class="sxr">'+esc(e[1])+'</div></div>').join("")+'</div>':"")+
@@ -3100,6 +3174,8 @@ function openWord(word){
       (S.words[word.toLowerCase()]?ICON.check+' Уже в словарике':'+ В словарик на повтор')+'</button>'+
     '<div style="height:8px"></div><button class="btn ghost" id="clsBtn">Закрыть</button>';
   document.getElementById("sayBtn").onclick=()=>say(word);
+  const ph=document.getElementById("phSay");
+  if(ph)ph.onclick=e=>{e.stopPropagation();say(phrase);};
   document.getElementById("addBtn").onclick=e=>{
     const k=word.toLowerCase();
     if(S.words[k]){delete S.words[k];e.target.closest("button").innerHTML="+ В словарик на повтор";}
@@ -3118,7 +3194,7 @@ function openWord(word){
 }
 app.addEventListener("click",e=>{
   const w=e.target.closest(".w");
-  if(w&&!e.target.closest(".opt")){e.stopPropagation();openWord(w.textContent);}
+  if(w&&!e.target.closest(".opt")){e.stopPropagation();openWord(w.textContent,w);}
 },true);
 
 /* ================= роутер ================= */
@@ -3794,6 +3870,126 @@ function diaListen(){
   r.onend=()=>reset();
   try{r.start();}catch(e){box.textContent="Не удалось включить микрофон.";}
 }
+
+/* ============ переводы фраз из теории ============ */
+const PHRASE_RU={
+"what do you do":"чем занимаешься (о работе)",
+"where are you from":"откуда ты",
+"how long have you been here":"давно ты здесь",
+"what are you doing this weekend":"что делаешь в эти выходные",
+"have you been there":"ты там был",
+"how much is it":"сколько это стоит",
+"how long does it take":"сколько времени это занимает",
+"what do you think":"что думаешь",
+"can i ask you something":"можно тебя спросить",
+"how about you":"а ты",
+"what about you":"а ты",
+"and you":"а ты",
+"i can fix this":"я могу это починить",
+"i can't hear you":"я тебя не слышу",
+"can i use your charger":"можно взять твою зарядку",
+"i'll be able to help tomorrow":"я смогу помочь завтра",
+"i wasn't able to log in":"я не смог войти",
+"i should've known":"я должен был догадаться",
+"that could've been worse":"могло быть и хуже",
+"i would've done the same":"я бы сделал так же",
+"you must've been exhausted":"ты, наверное, вымотался",
+"it might've been a mistake":"возможно, это была ошибка",
+"let me think":"дай подумать",
+"how can i say it":"как бы это сказать",
+"that's a good question":"хороший вопрос",
+"hmm, well":"хм, ну",
+"actually":"на самом деле, вообще-то",
+"you know":"ну, знаешь",
+"i mean":"в смысле, то есть",
+"sorry":"извини; что-что",
+"sorry, i didn't catch that":"извини, я не расслышал",
+"could you say that again":"можешь повторить",
+"could you speak a little slower, please":"можешь говорить чуть медленнее",
+"what does that mean":"что это значит",
+"really? why":"правда? почему",
+"what brought you here":"что тебя сюда привело",
+"how do you like it here":"как тебе здесь",
+"really":"правда, серьёзно",
+"that's cool":"круто",
+"makes sense":"логично, понятно",
+"i know what you mean":"понимаю, о чём ты",
+"same here":"у меня так же",
+"fair enough":"ну ладно, справедливо",
+"no way":"да ладно, ни за что",
+"that sounds tough":"звучит тяжело",
+"do you like it? — yes, i do":"тебе нравится? — да",
+"can you come? — no, i can't":"ты можешь прийти? — нет, не могу",
+"are you coming? — yes, i am":"ты идёшь? — да",
+"have you seen it? — yes, i have":"ты это видел? — да",
+"interested in":"интересуюсь чем-то",
+"good at":"хорош в чём-то",
+"bad at":"плох в чём-то",
+"afraid of":"боюсь чего-то",
+"tired of":"устал от чего-то",
+"married to":"женат на, замужем за",
+"proud of":"горжусь чем-то",
+"similar to":"похож на",
+"different from":"отличается от",
+"responsible for":"отвечаю за",
+"sorry about / for":"сожалею о чём-то",
+"call me":"позвони мне",
+"answer the question":"ответь на вопрос",
+"discuss the project":"обсудить проект",
+"enter the room":"войти в комнату",
+"marry her":"жениться на ней",
+"visit us":"навестить нас",
+"tell me":"скажи мне",
+"can you pass me the salt":"передашь соль",
+"hand me that, please":"подай мне это, пожалуйста",
+"give it to me":"дай это мне",
+"bring it here":"принеси сюда",
+"move it a bit":"подвинь немного",
+"like":"типа, как бы",
+"kind of":"типа, вроде",
+"or something":"или что-то такое",
+"stuff like that":"и всё такое",
+"what happened next":"что было дальше",
+"no way!":"да ладно!",
+"that's crazy":"с ума сойти",
+"and then what":"и что потом",
+"how did it end":"чем всё кончилось",
+"know":"знать","want":"хотеть","need":"нуждаться","love":"любить","hate":"ненавидеть",
+"understand":"понимать","mean":"означать","believe":"верить","remember":"помнить",
+"seem":"казаться","belong":"принадлежать","cost":"стоить",
+"yesterday":"вчера","last week":"на прошлой неделе","last year":"в прошлом году",
+"two days ago":"два дня назад","in 2019":"в 2019 году","when i was young":"когда я был молодым",
+"then":"тогда, потом","at that time":"в то время",
+"get up":"вставать","get in":"садиться (в машину)","get out":"выходить (из машины)",
+"get on":"садиться (в автобус)","get off":"выходить (из автобуса)","get back":"вернуться",
+"get along with":"ладить с кем-то","get over":"пережить, оправиться","get rid of":"избавиться от",
+"get it":"понять",
+"terrible":"ужасно","not great":"так себе","okay":"нормально","pretty good":"неплохо",
+"really good":"очень хорошо","amazing":"потрясающе"
+};
+function phraseRu(t){
+  const k=bare(norm(t)).replace(/\s+/g," ").trim();
+  if(PHRASE_RU[k])return PHRASE_RU[k];
+  const k2=k.replace(/[…\u2026]/g,"").trim();
+  if(PHRASE_RU[k2])return PHRASE_RU[k2];
+  // ищем среди пар «фраза — перевод», собранных из заданий и теории
+  const pool=buildExamples();
+  for(const p of pool){
+    if(bare(norm(p[0])).replace(/\s+/g," ").trim()===k)return p[1];
+  }
+  return null;
+}
+/* если готового перевода нет — собираем по словам */
+function wordByWord(t){
+  const ws=String(t).match(/[A-Za-z][A-Za-z'’-]*/g)||[];
+  const out=[];
+  ws.forEach(w=>{
+    const d=dictLook(w);
+    if(d&&out.length<8)out.push(w+" — "+d[0]);
+  });
+  return out;
+}
+
 function viewDia(){
   const D=dia.d;
   if(dia.pos>=D.lines.length){
@@ -4078,12 +4274,9 @@ if("serviceWorker" in navigator){
       reg.update();
       if(reg.waiting)reg.waiting.postMessage({type:"SKIP_WAITING"});
       reg.addEventListener("updatefound",function(){
-        var w=reg.installing;
-        if(!w)return;
+        var w=reg.installing; if(!w)return;
         w.addEventListener("statechange",function(){
-          if(w.state==="installed"&&navigator.serviceWorker.controller){
-            w.postMessage({type:"SKIP_WAITING"});
-          }
+          if(w.state==="installed"&&navigator.serviceWorker.controller)w.postMessage({type:"SKIP_WAITING"});
         });
       });
     }).catch(function(e){console.log("SW не зарегистрирован:",e);});
