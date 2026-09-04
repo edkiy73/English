@@ -187,15 +187,23 @@ tr:last-child td{border-bottom:0}
 .rurow:last-child{border-bottom:0}
 .rurow b{display:block;font-size:14.5px;font-weight:600;line-height:1.35}
 .rurow span{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.35}
+.labelrow{display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 10px}
+.linkbtn{
+  display:inline-flex;align-items:center;gap:2px;background:none;border:0;padding:0;
+  font-family:inherit;font-size:13px;font-weight:500;color:var(--accent);cursor:pointer;
+}
+.linkbtn svg{width:14px;height:14px;flex:0 0 14px;display:block}
+.linkbtn:active{opacity:.6}
 .map{position:relative;padding:4px 0 4px 0}
 .map:before{
   content:"";position:absolute;left:21px;top:26px;bottom:26px;width:2px;
   background:var(--border);border-radius:2px;
 }
 .mnode{
-  position:relative;display:flex;align-items:center;gap:14px;
+  position:relative;display:flex;align-items:center;gap:14px;text-align:left;
   padding:9px 12px 9px 0;margin-bottom:2px;border-radius:var(--r);
 }
+.mnode .mbody{text-align:left}
 .mnode[data-mles],.mnode[data-dia],.mnode[data-ai]{cursor:pointer}
 .mnode[data-mles]:active,.mnode[data-dia]:active,.mnode[data-ai]:active{background:var(--elev)}
 .mcircle{
@@ -205,20 +213,22 @@ tr:last-child td{border-bottom:0}
   font-size:15px;font-weight:600;line-height:1;
   background:var(--bg);border:2px solid var(--border);color:var(--muted);
 }
-.mnode.done .mcircle{background:var(--ok);border-color:var(--ok);color:#fff}
-.mnode.cur .mcircle{
+.mnode.m-done .mcircle{background:var(--ok);border-color:var(--ok);color:#fff}
+.mnode.m-cur .mcircle{
   background:var(--accent);border-color:var(--accent);color:#fff;
   box-shadow:0 0 0 5px var(--accent-soft);
 }
-.mnode.open .mcircle{border-color:var(--accent);color:var(--accent)}
-.mnode.future .mcircle{opacity:.55}
-.mnode.rest .mcircle{width:30px;height:30px;flex:0 0 30px;margin-left:7px;font-size:18px}
-.mnode.dia .mcircle,.mnode.ai .mcircle{width:34px;height:34px;flex:0 0 34px;margin-left:5px;font-size:13px}
-.mnode.dia.open .mcircle,.mnode.ai.open .mcircle{background:var(--accent-soft)}
+.mnode.m-open .mcircle{border-color:var(--accent);color:var(--accent)}
+/* без прозрачности: иначе линия просвечивает сквозь кружок */
+.mnode.m-future .mcircle{background:var(--bg);border-color:var(--border);color:var(--faint)}
+.mnode.k-rest .mcircle{width:30px;height:30px;flex:0 0 30px;margin-left:7px;font-size:18px}
+.mnode.k-dia .mcircle,.mnode.k-ai .mcircle{width:34px;height:34px;flex:0 0 34px;margin-left:5px;font-size:13px}
+.mnode.k-dia.m-open .mcircle,.mnode.k-ai.m-open .mcircle{background:var(--accent-soft)}
 .mbody{flex:1;min-width:0}
 .mkind{font-size:11px;color:var(--faint);letter-spacing:.01em}
 .mtitle{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.3;margin-top:1px}
-.mnode.future .mtitle,.mnode.future .msub{opacity:.55}
+.mnode.m-future .mtitle{color:var(--muted)}
+.mnode.m-future .msub,.mnode.m-future .mkind{color:var(--faint)}
 .msub{font-size:12.5px;color:var(--muted);margin-top:1px;line-height:1.3}
 .mdots{display:flex;gap:4px;margin-top:7px}
 .mdots i{width:16px;height:4px;border-radius:2px;background:var(--elev);display:block}
@@ -299,10 +309,11 @@ nav{
   padding-bottom:env(safe-area-inset-bottom);display:flex;
 }
 nav button{
-  flex:1;background:none;border:0;padding:9px 4px 10px;cursor:pointer;font-family:inherit;
-  font-size:11px;font-weight:500;color:var(--faint);display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;
+  flex:1;min-width:0;background:none;border:0;padding:9px 2px 10px;cursor:pointer;font-family:inherit;
+  font-size:10.5px;font-weight:500;color:var(--faint);display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;
+  white-space:nowrap;
 }
-nav button svg{width:21px;height:21px;flex:0 0 21px;display:block}
+nav button svg{width:20px;height:20px;flex:0 0 20px;display:block}
 nav button.on{color:var(--fg)}
 nav .dot{
   position:absolute;top:5px;left:50%;margin-left:6px;min-width:17px;height:17px;line-height:17px;
@@ -2759,6 +2770,7 @@ const ICON={
  repeat:I('<polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>'),
  layers:I('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
  chart:I('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'),
+ grid:I('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'),
  chevR:I('<polyline points="9 18 15 12 9 6"/>'),
  chevL:I('<polyline points="15 18 9 12 15 6"/>'),
  check:I('<polyline points="20 6 9 17 4 12"/>'),
@@ -2770,7 +2782,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.8";
+const BUILD="2026-09-04.10";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3311,14 +3323,19 @@ function renderInner(){
   else if(n==="dia")viewDia();
   else if(n==="ai")viewAi(view.id);
   else if(n==="review")viewReview();
+  else if(n==="topics")viewTopics();
   else if(n==="bank")viewBank();
   else if(n==="progress")viewProgress();
   renderNav();decorate();
 }
 function renderNav(){
   const d=dueCards().length+patDue().length+vocDue().length+lisDue().length+wordsDue().length;
-  const tabs=[["lessons","Уроки",ICON.book],["review","Повтор",ICON.repeat],["bank","Банк",ICON.layers],["progress","Прогресс",ICON.chart]];
-  const cur=(view.n==="lesson"||view.n==="pat")?"lessons":(view.n==="drill"?(drill&&drill.mode==="review"?"review":"lessons"):view.n);
+  const tabs=[["lessons","Сегодня",ICON.book],["review","Повтор",ICON.repeat],
+              ["topics","Все темы",ICON.grid],["bank","Банк",ICON.layers],["progress","Прогресс",ICON.chart]];
+  let cur=view.n;
+  if(view.n==="lesson"||view.n==="pat"||view.n==="dia"||view.n==="ai")cur="lessons";
+  if(view.n==="drill")cur=(drill&&drill.mode==="review")?"review":"lessons";
+  if(view.n==="words")cur="review";
   navEl.innerHTML=tabs.map(t=>'<button data-nav="'+t[0]+'" class="'+(cur===t[0]?"on":"")+'">'+t[2]+t[1]+
     (t[0]==="review"&&d>0?'<span class="dot">'+d+'</span>':'')+'</button>').join("");
 }
@@ -3466,7 +3483,7 @@ function viewLessons(){
        '<p class="small" style="margin:0">Просто открывай шаги сверху вниз. Всё остальное появится само, когда придёт время.</p></div>';
   }
   if(d>0){
-    h+='<button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button><div style="height:18px"></div>';
+    h+='<div style="height:14px"></div><button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button>';
   }
   h+='<div class="label">Сегодня · день '+dn+' из '+PLAN.length+'</div>';
   h+=p.ids.length?p.ids.map(id=>todayCard(id)).join(""):
@@ -3480,12 +3497,9 @@ function viewLessons(){
   let ci=nodes.findIndex(n=>n.state==="cur");
   if(ci<0)ci=0;
   const from=Math.max(0,ci-1),slice=nodes.slice(from,from+5);
-  h+='<div class="label">Карта курса</div>'+
-     '<div class="map">'+slice.map(mapNode).join("")+'</div>'+
-     '<div style="height:10px"></div>'+
-     '<button class="btn sec" data-h="map">Вся карта курса</button>'+
-     '<div style="height:10px"></div>'+
-     '<button class="btn ghost" data-h="tags">Все темы списком</button>';
+  h+='<div class="labelrow"><span class="label" style="margin:0">Карта курса</span>'+
+     '<button class="linkbtn" data-h="map">вся карта'+ICON.chevR+'</button></div>'+
+     '<div class="map">'+slice.map(mapNode).join("")+'</div>';
   app.innerHTML=h;
   const gr=document.getElementById("goRev");if(gr)gr.onclick=()=>go({n:"review"});
   wireHome();
@@ -3523,7 +3537,7 @@ function mapIcon(n){
   return n.day;
 }
 function mapNode(n){
-  const cls="mnode "+n.kind+" "+n.state;
+  const cls="mnode k-"+n.kind+" m-"+n.state;
   const tap=(n.state!=="future")&&(n.kind==="lesson"||n.kind==="dia"||n.kind==="ai");
   const attr=tap?(n.kind==="lesson"?' data-mles="'+n.id+'"':(n.kind==="dia"?' data-dia="'+n.id+'"':' data-ai="'+n.id+'"')):"";
   let dots="";
@@ -3643,6 +3657,7 @@ function patHeadline(){
     '<div class="qprog"><i style="width:'+Math.round(pat.pos/pat.items.length*100)+'%"></i></div>';
 }
 function viewPat(){
+  if(!pat)return go({n:"lessons"});
   if(pat.pos>=pat.items.length)return patDone();
   const it=pat.items[pat.pos],L=byId(pat.id);
   setHead(pat.mixed?"Смешанный дрилл":L.t,
@@ -3913,6 +3928,7 @@ function startDrill(q,mode,title){
   go({n:"drill"});
 }
 function viewDrill(){
+  if(!drill)return go({n:"lessons"});
   if(drill.pos>=drill.q.length&&drill.again.length){drill.q=drill.q.concat(drill.again);drill.again=[];}
   if(drill.pos>=drill.q.length)return drillDone();
   const item=drill.q[drill.pos],c=item.c;
@@ -4138,6 +4154,7 @@ function wordByWord(t){
 }
 
 function viewDia(){
+  if(!dia)return go({n:"lessons"});
   const D=dia.d;
   if(dia.pos>=D.lines.length){
     const n=D.lines.length,good=dia.okCount||0;
@@ -4204,6 +4221,7 @@ function startWords(){
   go({n:"words"});
 }
 function viewWords(){
+  if(!wr)return go({n:"review"});
   if(wr.pos>=wr.list.length){
     setHead("Словарик","готово");
     app.innerHTML='<div class="done"><div class="big">'+wr.ok+' из '+wr.list.length+'</div>'+
@@ -4237,6 +4255,14 @@ function viewWords(){
 }
 
 /* ================= банк ================= */
+function viewTopics(){
+  setHead("Все темы",LESSONS.length+" уроков");
+  let h='<p class="small" style="margin:6px 0 16px">Все уроки курса по смыслу. Можно открыть любой в любое время — но по порядку идти полезнее: темы опираются друг на друга.</p>';
+  const g={};LESSONS.forEach(l=>{(TAGS[l.id]||["прочее"]).forEach(t=>{(g[t]=g[t]||[]).push(l);});});
+  Object.keys(g).forEach(t=>{h+='<div class="label">'+esc(t)+'</div>'+g[t].map(lessonRow).join("");});
+  app.innerHTML=h;
+  app.querySelectorAll("[data-les]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.les}));
+}
 function viewBank(){
   setHead("Банк","фразы и глаголы");
   let h='<div class="seg"><button data-b="0" class="'+(bankTab===0?"on":"")+'">Фразы</button>'+
