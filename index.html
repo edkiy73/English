@@ -190,21 +190,32 @@ tr:last-child td{border-bottom:0}
 .mrow{position:relative}
 .mrow.expanded{
   background:var(--card);border:1px solid var(--border);border-radius:var(--r);
-  margin:6px 0 10px;padding:4px 0 12px;box-shadow:var(--shadow);
+  margin:4px 0 8px;padding:2px 0 6px;
 }
-.mrow.expanded .mnode{padding-right:14px}
-.mexp{padding:2px 14px 0 58px}
-.mexp .steprow{border-top:1px solid var(--border);padding:10px 0}
-.mexp .steprow:first-child{border-top:1px solid var(--border)}
-.pastwrap{position:relative;overflow:hidden;transition:max-height .3s ease}
-.pastwrap.collapsed{max-height:72px}
-.pastwrap.collapsed:after{
-  content:"";position:absolute;left:0;right:0;top:0;height:72px;pointer-events:none;
-  background:linear-gradient(to bottom,var(--bg) 18%,rgba(255,255,255,0) 100%);
+.mrow.expanded .mnode{padding:8px 12px 8px 10px}
+.mrow.expanded .mcircle{width:38px;height:38px;flex:0 0 38px;font-size:14px}
+.mrow.expanded .mtitle{font-size:15px}
+.mrow.expanded .msub{display:none}
+.mexp{padding:0 12px 0 60px}
+.mexp .steprow{border-top:1px solid var(--border);padding:9px 0;margin:0}
+.mexp .stept{font-size:14px}
+.mexp .goal{font-size:13.5px;padding:11px 13px}
+.mexp .gex div{font-size:14px}
+.gapnote{
+  background:var(--accent-soft);border-radius:var(--r-sm);
+  padding:13px 15px;margin:14px 0 2px;font-size:14px;line-height:1.5;
 }
-[data-theme="dark"] .pastwrap.collapsed:after{
-  background:linear-gradient(to bottom,var(--bg) 18%,rgba(9,9,11,0) 100%);
+.pastwrap{
+  position:relative;overflow:hidden;
+  transition:max-height .5s cubic-bezier(.4,0,.2,1),opacity .4s ease;
 }
+.pastwrap.collapsed{max-height:104px;opacity:.75}
+.pastwrap:after{
+  content:"";position:absolute;left:0;right:0;top:0;height:104px;pointer-events:none;
+  opacity:0;transition:opacity .4s ease;
+  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 30%,transparent 100%);
+}
+.pastwrap.collapsed:after{opacity:1}
 .pastlink{
   display:block;margin:2px auto 10px;background:none;border:0;cursor:pointer;
   font-family:inherit;font-size:12.5px;color:var(--faint);padding:4px 10px;
@@ -2805,7 +2816,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.11";
+const BUILD="2026-09-04.12";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -2845,7 +2856,7 @@ function gradePat(store,id,ok){
   const m=S[store]||(S[store]={}),st=m[id]||{box:0,due:0};
   st.box=ok?Math.min(4,st.box+1):0;
   st.due=dayNum(today())+(store==="voc"?VINT:(store==="lis"?LINT:PINT))[st.box];
-  m[id]=st;markDay();saveState();
+  m[id]=st;markDay();markActive();saveState();
 }
 const app=document.getElementById("app"), navEl=document.getElementById("nav");
 const sheet=document.getElementById("sheet"), scrim=document.getElementById("scrim");
@@ -2859,13 +2870,16 @@ function dueCards(){const t=dayNum(today());return allCards().filter(x=>{const s
 function lessonStat(l){let learned=0,started=0;l.cards.forEach((c,i)=>{const st=S.srs[key(l.id,i)];if(st){started++;if(st.box>=3)learned++;}});return{learned,started,total:l.cards.length};}
 function plural(n,a,b,c){const m=n%100;if(m>=11&&m<=14)return c;const k=n%10;return k===1?a:(k>=2&&k<=4?b:c);}
 function markDay(){const t=today();if(S.day!==t){if(S.day&&dayNum(t)-dayNum(S.day)===1)S.streak=(S.streak||0)+1;else S.streak=1;S.day=t;}}
+/* act — последний день, когда реально занимались (а не просто открыли приложение) */
+function markActive(){S.act=today();}
+function gapDays(){return S.act?dayNum(today())-dayNum(S.act):0;}
 function grade(l,i,ok){
   const k=key(l,i),st=S.srs[k]||{box:0,due:0};
   st.box=ok?Math.min(5,st.box+1):0;
   st.due=dayNum(today())+INTERVALS[st.box];
   S.srs[k]=st;S.total++;if(ok)S.right++;
   const e=S.err[k]||{t:0,w:0};e.t++;if(!ok)e.w++;S.err[k]=e;
-  markDay();saveState();
+  markDay();markActive();saveState();
 }
 function norm(s){return String(s).toLowerCase().replace(/[\u2019\u02BC]/g,"'").replace(/[.,!?;:"()\u2014\u2013-]/g," ").replace(/\s+/g," ").trim();}
 function expand(s){return (" "+s+" ").replace(/n't\b/g," not").replace(/'ll\b/g," will").replace(/'re\b/g," are").replace(/'ve\b/g," have").replace(/'d\b/g," would").replace(/'m\b/g," am").replace(/\bcannot\b/g,"can not").replace(/\s+/g," ").trim();}
@@ -3516,6 +3530,11 @@ function viewLessons(){
        '<p class="small" style="margin:0 0 8px">Курс на '+PLAN.length+' дней: каждый день один урок из четырёх шагов — теория, разбор, дрилл на скорость, голос. Занимает 20–25 минут.</p>'+
        '<p class="small" style="margin:0">Просто открывай шаги сверху вниз. Всё остальное появится само, когда придёт время.</p></div>';
   }
+  const gap=gapDays();
+  if(gap>1){
+    h+='<div class="gapnote"><b>Перерыв '+gap+' '+plural(gap,"день","дня","дней")+'.</b> '+
+       'Ничего страшного — так у всех. Начни с повтора, он подтянет забытое. Новый урок бери, только если останутся силы.</div>';
+  }
   if(d>0){
     h+='<div style="height:14px"></div><button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button>';
   }
@@ -3651,12 +3670,18 @@ function wirePast(){
     if(pastOpen){
       const anchor=window.scrollY;
       pastScroll=()=>{
-        // ушёл вниз по ленте — прошлое снова прячется
-        if(window.scrollY>anchor+340){
+        // ушёл заметно вниз — прошлое снова прячется, но без рывка страницы
+        if(window.scrollY>anchor+700){
+          const before=box.getBoundingClientRect().height;
           pastOpen=false;
           box.classList.add("collapsed");
           btn.textContent="показать пройденное";
           window.removeEventListener("scroll",pastScroll);pastScroll=null;
+          requestAnimationFrame(()=>{
+            const after=box.getBoundingClientRect().height;
+            const delta=before-after;
+            if(delta>0)window.scrollBy(0,-delta);
+          });
         }
       };
       window.addEventListener("scroll",pastScroll,{passive:true});
@@ -4454,6 +4479,7 @@ function viewProgress(){
     '<div><div class="n">'+acc+'%</div><div class="l">верных<br>ответов</div></div></div>'+
     '<p class="small">Карточка считается выученной после трёх верных ответов подряд с растущими промежутками.</p>'+
     '<div class="label">По урокам</div>'+
+    (S.act&&gapDays()>1?'<p class="small">Последнее занятие: '+gapDays()+' '+plural(gapDays(),"день","дня","дней")+' назад. Серия обнулится, но прогресс и расписание повторов сохраняются полностью.</p>':'')+
     '<p class="small">Скорость — доля фраз из дрилла, выданных быстрее пяти секунд. Знание проверяется карточками, а готовность говорить — только дриллом.</p>'+
     '<p class="small">Разобрано — сколько карточек урока ты вообще проходил. Закреплено — сколько уже сидит в памяти: три верных ответа подряд с растущими промежутками. Сразу после первого прохода закреплено всегда ноль, это нормально — карточка вернётся завтра, потом через три дня, потом через неделю.</p>';
   LESSONS.forEach(l=>{
