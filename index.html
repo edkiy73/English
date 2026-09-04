@@ -1002,7 +1002,8 @@ const LESSONS = [
 <p class="small">Носители делают ровно так же. Это звучит нормально, а не глупо.</p>
 <h3>Когда не понял</h3>
 <p class="en">Sorry? · Sorry, I didn't catch that · Could you say that again? · Could you speak a little slower, please? · What does that mean?</p>
-<div class="ex">Sorry, my English isn't great — I'm still learning.<span class="ru">Сразу снимает напряжение: люди переключаются на простой язык и становятся терпеливее.</span></div>
+<div class="ex">Sorry, my English isn't great — I'm still learning.<span class="ru">Извини, мой английский так себе — я ещё учу.</span></div>
+<p class="small">Сразу снимает напряжение: люди переключаются на простой язык и становятся терпеливее.</p>
 <h3>Не знаешь слово — описывай</h3>
 <div class="formula">It's a thing you use for… · It's like… · It's when…</div>
 <p class="small">Забыл «отвёртка» → <span class="en">It's a tool you use for screws.</span><br>Забыл «арендовать» → <span class="en">I pay for the house every month, but it's not mine.</span></p>
@@ -1524,7 +1525,8 @@ LESSONS.push(
 <h3>Фон: Past Continuous</h3>
 <div class="formula">was / were + глагол с -ing</div>
 <p>Длинное действие, которое шло в тот момент, когда случилось что-то короткое.</p>
-<div class="ex">I <b>was working</b> when he called.<span class="ru">Я работал, когда он позвонил. — работа шла долго, звонок случился в один момент</span></div>
+<div class="ex">I <b>was working</b> when he called.<span class="ru">Я работал, когда он позвонил.</span></div>
+<p class="small">Работа шла долго, звонок случился в один момент.</p>
 <div class="ex">We <b>were having</b> dinner when the power went out.<span class="ru">Мы ужинали, когда выключили свет.</span></div>
 <table class="eng">
 <tr><td><b>when</b> + короткое событие</td><td class="ru">when he called, when it happened</td></tr>
@@ -1618,7 +1620,8 @@ LESSONS.push(
 <tr><td>maybe / probably</td><td class="ru">может быть / скорее всего</td></tr>
 <tr><td>to be honest</td><td class="ru">если честно: To be honest, I didn't like it.</td></tr>
 </table>
-<div class="ex">It's bad. → It's not great, to be honest.<span class="ru">Второй вариант — то же самое, но без грубости.</span></div>
+<div class="ex">It's not great, to be honest.<span class="ru">Если честно, так себе.</span></div>
+<p class="small">То же самое, что It's bad, но сказано без грубости.</p>
 <div class="ex">No, I don't want to. → I'd rather not, if that's ok.<span class="ru">Мягкий отказ вместо резкого.</span></div>
 
 <h3>Усилители</h3>
@@ -2731,7 +2734,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.5";
+const BUILD="2026-09-04.6";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3065,6 +3068,10 @@ function splitPair(en,ru,out){
       if(!/[A-Za-z]{2}/.test(ee))continue;
       if(!/[\u0400-\u04FF]/.test(rr))continue;
       if(ee.length<6||ee.length>85)continue;
+      // отсекаем пояснения: перевод не содержит разъяснения через двоеточие
+      // и не бывает втрое длиннее английской фразы
+      if(/[а-яё]:\s/i.test(rr))continue;
+      if(rr.replace(/\([^)]*\)/g,"").length>ee.length*2.4+12)continue;
       out.push([ee,rr]);
     }
   }
@@ -3152,8 +3159,15 @@ function phraseAround(el,word){
 }
 function openWord(word,el){
   const d=dictLook(word);
-  const exs=findExamples(word,2);
   const phrase=phraseAround(el,word);
+  const keyOf=t=>bare(norm(t)).replace(/\s+/g," ").trim();
+  const shown={};
+  if(phrase)shown[keyOf(phrase)]=1;
+  const exs=findExamples(word,4).filter(e=>{
+    const k=keyOf(e[0]);
+    if(shown[k])return false;
+    shown[k]=1;return true;
+  }).slice(0,2);
   const pru=phrase?phraseRu(phrase):null;
   const pww=(phrase&&!pru)?wordByWord(phrase):[];
   sheet.innerHTML='<div class="grab"></div><div class="word">'+esc(word)+'</div>'+
@@ -3166,7 +3180,8 @@ function openWord(word,el){
           :(pww.length?'<div class="sxr">'+esc(pww.join(" · "))+'</div>'
                       :'<div class="sxr">перевода этой фразы пока нет — тапни по отдельным словам</div>'))+
       '</div></div>':"")+
-    (exs.length?'<div class="sx">'+exs.map((e,i)=>
+    (exs.length?'<div class="sx"><div class="small" style="margin-bottom:6px">'+
+      (phrase?'Другие примеры с этим словом':'Примеры')+'</div>'+exs.map((e,i)=>
       '<div class="sxi"><div class="sxe">'+esc(e[0])+'<button class="spk" style="position:static;margin-left:8px" data-sx="'+i+'">'+ICON.sound+'</button></div>'+
       '<div class="sxr">'+esc(e[1])+'</div></div>').join("")+'</div>':"")+
     '<div style="height:16px"></div><button class="btn" id="sayBtn">'+ICON.sound+' Произнести ещё раз</button>'+
