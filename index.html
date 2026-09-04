@@ -2716,6 +2716,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
+const BUILD="2026-09-04.4";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3127,6 +3128,9 @@ function pushHist(entry){
   stack.push(entry);
   try{history.pushState({d:stack.length},"");}catch(e){}
 }
+let tapLock=0;
+function lockTaps(ms){tapLock=Date.now()+(ms||400);}
+function tapsLocked(){return Date.now()<tapLock;}
 function go(v){
   if(sheetOpen)closeSheet();
   view=v;pushHist({view:v});window.scrollTo(0,0);render();
@@ -3478,7 +3482,9 @@ function viewPat(){
   if(pat.mode==="listen"&&pat.phase==="ask"){
     say(it[1]);
     document.getElementById("play").onclick=()=>say(it[1]);
+    lockTaps(400);
     app.querySelectorAll("[data-l]").forEach(b=>b.onclick=()=>{
+      if(tapsLocked())return;
       const chosen=pat.opts[+b.dataset.l];
       pat.ok=chosen===it[0];
       if(pat.ok)pat.hit++;else pat.miss++;
@@ -3642,16 +3648,16 @@ function viewReview(){
     h+='<div class="card"><p style="margin:0 0 6px;font-weight:600">Сегодня повторять нечего</p>'+
        '<p class="small" style="margin:0">Карточки возвращаются по расписанию: на следующий день, через три дня, через неделю, через шестнадцать дней и через месяц. Ошибся — карточка падает в начало цепочки и приходит завтра.</p></div>'+
        '<button class="btn sec" data-nav="lessons">'+ICON.book+' К урокам</button>';
-  }else{
+  }else if(d.length){
     const CAP=30;
     const by={};d.forEach(x=>{by[x.l]=(by[x.l]||0)+1;});
-    h+='<div class="label">Готово к повтору: '+d.length+'</div>';
+    h+='<div class="label">Карточки: '+d.length+'</div>';
     if(d.length>CAP)h+='<p class="small">За один подход берём '+CAP+' карточек — так короче и полезнее. Остальные останутся ждать, можно вернуться позже.</p>';
     Object.keys(by).forEach(k=>{h+='<div class="row" style="cursor:default"><div class="body"><div class="t" style="font-size:15px">'+esc(byId(k).t)+'</div></div><div class="small">'+by[k]+'</div></div>';});
     h+='<div style="height:10px"></div><button class="btn" id="startRev">'+ICON.repeat+' Начать повтор</button>';
   }
-  if(dp.length||dv.length){
-    h+='<div class="label">Дриллы и голос</div>'+
+  if(dp.length||dv.length||dl.length){
+    h+='<div class="label">Дриллы, слух и голос</div>'+
        '<p class="small" style="margin-bottom:12px">Конструкции, которые пора прогнать на скорость. Карточки держат знание, дриллы держат скорость — это две половины одного повтора.'+
        (patWaiting()>0?' Ещё '+patWaiting()+' в очереди: за один день берём не больше трёх дриллов и двух голосовых заходов, иначе день распухает.':'')+'</p>';
     dp.forEach(id=>{h+='<button class="btn sec" data-pd="'+id+'" style="margin-bottom:8px">'+ICON.repeat+' Дрилл: '+esc(byId(id).t)+'</button>';});
@@ -3707,7 +3713,9 @@ function viewDrill(){
     '<div class="qtask">'+esc(c.t==="mc"?(c.task||"Выбери вариант"):(c.task||"Переведи"))+'</div>'+
     main+ru+'<div id="body">'+body+'</div><div id="v"></div>';
   if(c.t==="mc"){
+    lockTaps(400);
     app.querySelectorAll("[data-o]").forEach(b=>b.onclick=()=>{
+      if(tapsLocked())return;
       const i=+b.dataset.o,ok=i===c.a;
       app.querySelectorAll(".opt").forEach(x=>{
         x.disabled=true;const j=+x.dataset.o;
@@ -4037,7 +4045,9 @@ function viewProgress(){
     '<div style="height:10px"></div>'+
     '<button class="btn sec" id="impBtn">'+ICON.repeat+' Загрузить из файла</button>'+
     '<input type="file" id="impFile" accept="application/json,.json" style="display:none">'+
-    '<div style="height:18px"></div><button class="btn ghost" id="rst">Сбросить прогресс</button><div style="height:16px"></div>';
+    '<div style="height:18px"></div><button class="btn ghost" id="rst">Сбросить прогресс</button>'+
+    '<p class="small" style="text-align:center;margin:16px 0 8px;font-size:11.5px">сборка '+BUILD+'</p>'+
+    '<div style="height:16px"></div>';
   app.innerHTML=h;
   app.querySelectorAll("[data-les]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.les}));
   const gw2=document.getElementById("goWeak");
@@ -4064,7 +4074,23 @@ function viewProgress(){
 <script>
 if("serviceWorker" in navigator){
   window.addEventListener("load",function(){
-    navigator.serviceWorker.register("sw.js").catch(function(e){console.log("SW не зарегистрирован:",e);});
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(function(reg){
+      reg.update();
+      if(reg.waiting)reg.waiting.postMessage({type:"SKIP_WAITING"});
+      reg.addEventListener("updatefound",function(){
+        var w=reg.installing;
+        if(!w)return;
+        w.addEventListener("statechange",function(){
+          if(w.state==="installed"&&navigator.serviceWorker.controller){
+            w.postMessage({type:"SKIP_WAITING"});
+          }
+        });
+      });
+    }).catch(function(e){console.log("SW не зарегистрирован:",e);});
+    var reloaded=false;
+    navigator.serviceWorker.addEventListener("controllerchange",function(){
+      if(reloaded)return; reloaded=true; location.reload();
+    });
   });
 }
 </script>
