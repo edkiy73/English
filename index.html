@@ -189,31 +189,44 @@ tr:last-child td{border-bottom:0}
 .rurow span{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.35}
 .mrow{position:relative}
 .mrow.expanded{
-  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
-  margin:4px 0 8px;padding:2px 0 6px;
+  background:var(--card);border:1px solid var(--border);border-radius:20px;
+  margin:6px 0 10px;padding:6px;
 }
-.mrow.expanded .mnode{padding:8px 12px 8px 10px}
-.mrow.expanded .mcircle{width:38px;height:38px;flex:0 0 38px;font-size:14px}
-.mrow.expanded .mtitle{font-size:15px}
+.mrow.expanded .mnode{padding:6px 6px 10px 4px;gap:11px}
+.mrow.expanded .mcircle{width:36px;height:36px;flex:0 0 36px;font-size:14px}
+.mrow.expanded .mkind{font-size:10.5px}
+.mrow.expanded .mtitle{font-size:15.5px;line-height:1.25}
 .mrow.expanded .msub{display:none}
-.mexp{padding:0 12px 0 60px}
-.mexp .steprow{border-top:1px solid var(--border);padding:9px 0;margin:0}
-.mexp .stept{font-size:14px}
-.mexp .goal{font-size:13.5px;padding:11px 13px}
-.mexp .gex div{font-size:14px}
+.mexp{padding:0 4px 2px}
+.mexp .steprow{
+  border:0;border-top:1px solid var(--border);padding:10px 6px;margin:0;gap:10px;
+}
+.mexp .stepmark{width:19px;height:19px;min-width:19px;flex:0 0 19px;font-size:11px}
+.mexp .stept{font-size:14px;font-weight:500}
+.mexp .chev svg{width:14px;height:14px}
+.mexp .goal{font-size:13.5px;line-height:1.45;padding:11px 13px;margin:10px 6px 4px;border-radius:12px}
+.mexp .gex{margin-top:8px;padding-top:8px}
+.mexp .gex div{font-size:13.5px;margin-bottom:4px}
+.theorylink{
+  display:flex;align-items:center;justify-content:center;gap:3px;width:100%;
+  background:none;border:0;border-top:1px solid var(--border);cursor:pointer;
+  font-family:inherit;font-size:13px;color:var(--muted);padding:10px 6px 6px;
+}
+.theorylink svg{width:13px;height:13px;flex:0 0 13px}
 .gapnote{
   background:var(--accent-soft);border-radius:var(--r-sm);
   padding:13px 15px;margin:14px 0 2px;font-size:14px;line-height:1.5;
 }
 .pastwrap{
   position:relative;overflow:hidden;
-  transition:max-height .5s cubic-bezier(.4,0,.2,1),opacity .4s ease;
+  display:flex;flex-direction:column;justify-content:flex-end;
+  transition:max-height .5s cubic-bezier(.4,0,.2,1);
 }
-.pastwrap.collapsed{max-height:104px;opacity:.75}
+.pastwrap.collapsed{max-height:96px}
 .pastwrap:after{
-  content:"";position:absolute;left:0;right:0;top:0;height:104px;pointer-events:none;
-  opacity:0;transition:opacity .4s ease;
-  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 30%,transparent 100%);
+  content:"";position:absolute;left:0;right:0;top:0;height:58px;pointer-events:none;
+  opacity:0;transition:opacity .35s ease;
+  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 55%,transparent 100%);
 }
 .pastwrap.collapsed:after{opacity:1}
 .pastlink{
@@ -255,7 +268,11 @@ tr:last-child td{border-bottom:0}
 .mnode.m-open .mcircle{border-color:var(--accent);color:var(--accent)}
 /* без прозрачности: иначе линия просвечивает сквозь кружок */
 .mnode.m-future .mcircle{background:var(--bg);border-color:var(--border);color:var(--faint)}
-.mnode.k-rest .mcircle{width:30px;height:30px;flex:0 0 30px;margin-left:7px;font-size:18px}
+.mnode.k-rest .mcircle{
+  width:36px;height:36px;flex:0 0 36px;margin-left:4px;font-size:13px;
+  border-style:dashed;color:var(--faint);
+}
+.mnode.k-rest.m-done .mcircle{border-style:solid}
 .mnode.k-dia .mcircle,.mnode.k-ai .mcircle{width:34px;height:34px;flex:0 0 34px;margin-left:5px;font-size:13px}
 .mnode.k-dia.m-open .mcircle,.mnode.k-ai.m-open .mcircle{background:var(--accent-soft)}
 .mbody{flex:1;min-width:0}
@@ -2816,7 +2833,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.12";
+const BUILD="2026-09-04.14";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3586,7 +3603,6 @@ function mapIcon(n){
   if(n.state==="done")return "\u2713";
   if(n.kind==="dia")return "\u25CF";
   if(n.kind==="ai")return "\u2726";
-  if(n.kind==="rest")return "\u00B7";
   return n.day;
 }
 /* шаги сегодняшнего урока прямо в ленте карты, без теории — она не задание */
@@ -3617,7 +3633,9 @@ function mapNode(n,expanded){
     for(let i=0;i<n.steps.n;i++)dots+='<i class="'+(i<n.steps.done?"on":"")+'"></i>';
     dots+='</div>';
   }
-  const kindLabel=n.kind==="dia"?"диалог":(n.kind==="ai"?"разговор с ИИ":(n.kind==="rest"?"":"день "+n.day));
+  const kindLabel=n.kind==="dia"?("день "+n.day+" · диалог")
+    :(n.kind==="ai"?("день "+n.day+" · разговор с ИИ")
+    :(n.kind==="rest"?("день "+n.day):("день "+n.day)));
   let extra="";
   if(expanded&&n.kind==="lesson"){
     const p=PLAN[n.day-1];
@@ -3627,10 +3645,7 @@ function mapNode(n,expanded){
         '<div class="stepmark'+(x.done?" ok":"")+'">'+(x.done?"\u2713":"")+'</div>'+
         '<div style="flex:1;min-width:0"><div class="stept">'+esc(x.t)+'</div></div>'+
         '<div class="chev">'+ICON.chevR+'</div></div>').join("")+
-      '<div class="steprow" data-go="lesson" data-lid="'+n.id+'">'+
-        '<div class="stepmark"></div>'+
-        '<div style="flex:1"><div class="stept" style="color:var(--muted)">Открыть теорию урока</div></div>'+
-        '<div class="chev">'+ICON.chevR+'</div></div>'+
+      '<button class="theorylink" data-go="lesson" data-lid="'+n.id+'">Открыть теорию урока'+ICON.chevR+'</button>'+
       (p?'<div class="goal" style="margin:12px 0 2px"><b>Задание вслух.</b> '+esc(p.g)+
         (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>':"")+
       '</div>';
