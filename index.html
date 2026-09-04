@@ -197,22 +197,25 @@ tr:last-child td{border-bottom:0}
 .mrow.expanded .mkind{font-size:10.5px}
 .mrow.expanded .mtitle{font-size:15.5px;line-height:1.25}
 .mrow.expanded .msub{display:none}
-.mexp{padding:0 4px 2px}
-.mexp .steprow{
-  border:0;border-top:1px solid var(--border);padding:10px 6px;margin:0;gap:10px;
+.mexp{padding:0 6px 4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 2px}
+.chip{
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;
+  font-family:inherit;font-size:13px;font-weight:500;color:var(--fg);
+  background:var(--elev);border:1px solid transparent;border-radius:999px;
+  padding:6px 11px 6px 8px;
 }
-.mexp .stepmark{width:19px;height:19px;min-width:19px;flex:0 0 19px;font-size:11px}
-.mexp .stept{font-size:14px;font-weight:500}
-.mexp .chev svg{width:14px;height:14px}
-.mexp .goal{font-size:13.5px;line-height:1.45;padding:11px 13px;margin:10px 6px 4px;border-radius:12px}
-.mexp .gex{margin-top:8px;padding-top:8px}
-.mexp .gex div{font-size:13.5px;margin-bottom:4px}
-.theorylink{
-  display:flex;align-items:center;justify-content:center;gap:3px;width:100%;
-  background:none;border:0;border-top:1px solid var(--border);cursor:pointer;
-  font-family:inherit;font-size:13px;color:var(--muted);padding:10px 6px 6px;
+.chip i{
+  width:15px;height:15px;flex:0 0 15px;border-radius:50%;font-style:normal;
+  border:1.5px solid var(--border-strong);display:flex;align-items:center;justify-content:center;
+  font-size:9px;line-height:1;color:transparent;
 }
-.theorylink svg{width:13px;height:13px;flex:0 0 13px}
+.chip.done{background:var(--ok-bg);color:var(--ok)}
+.chip.done i{background:var(--ok);border-color:var(--ok);color:#fff}
+.chip:active{opacity:.65}
+.mexp .goal{font-size:12.5px;line-height:1.45;padding:10px 12px;margin:10px 0 2px;border-radius:12px}
+.mexp .gex{margin-top:6px;padding-top:6px;font-size:12.5px;color:var(--muted);line-height:1.45}
+.mexp .gex div{font-size:12.5px;font-weight:400;margin:0}
 .gapnote{
   background:var(--accent-soft);border-radius:var(--r-sm);
   padding:13px 15px;margin:14px 0 2px;font-size:14px;line-height:1.5;
@@ -222,11 +225,14 @@ tr:last-child td{border-bottom:0}
   display:flex;flex-direction:column;justify-content:flex-end;
   transition:max-height .5s cubic-bezier(.4,0,.2,1);
 }
-.pastwrap.collapsed{max-height:96px}
+.pastwrap.collapsed{max-height:108px}
 .pastwrap:after{
-  content:"";position:absolute;left:0;right:0;top:0;height:58px;pointer-events:none;
+  content:"";position:absolute;left:0;right:0;top:0;height:76px;pointer-events:none;
   opacity:0;transition:opacity .35s ease;
-  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 55%,transparent 100%);
+  background:linear-gradient(to bottom,
+    var(--bg) 0%,var(--bg) 34%,
+    color-mix(in srgb,var(--bg) 55%,transparent) 68%,
+    transparent 100%);
 }
 .pastwrap.collapsed:after{opacity:1}
 .pastlink{
@@ -2833,7 +2839,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.14";
+const BUILD="2026-09-04.15";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3555,8 +3561,7 @@ function viewLessons(){
   if(d>0){
     h+='<div style="height:14px"></div><button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button>';
   }
-  h+='<div class="labelrow"><span class="label" style="margin:0">День '+dn+' из '+PLAN.length+'</span>'+
-     '<button class="linkbtn" data-h="map">вся карта'+ICON.chevR+'</button></div>';
+  h+='<div class="label">День '+dn+' из '+PLAN.length+'</div>';
 
   /* карта целиком: прошлое свёрнуто под градиентом, сегодня раскрыт */
   const nodes=mapNodes();
@@ -3609,17 +3614,17 @@ function mapIcon(n){
 function nodeSteps(id){
   const l=byId(id),st=lessonStat(l),pat=PATTERNS[id],CH=10,steps=[];
   if(l.cards.length<=12){
-    steps.push({go:"blk:0",t:"Разбор · "+l.cards.length+" заданий",done:st.started===st.total});
+    steps.push({go:"blk:0",t:"Разбор · "+l.cards.length+" заданий",short:"Разбор · "+l.cards.length,done:st.started===st.total});
   }else{
     for(let k=0;k<l.cards.length;k+=CH){
       const part=l.cards.slice(k,k+CH),seen=part.every((c,j)=>S.srs[key(id,k+j)]);
-      steps.push({go:"blk:"+k,t:"Разбор · блок "+(k/CH+1)+" ("+(k+1)+"–"+Math.min(k+CH,l.cards.length)+")",done:seen});
+      steps.push({go:"blk:"+k,t:"Разбор · блок "+(k/CH+1),short:"Разбор "+(k/CH+1),done:seen});
     }
   }
   if(pat){
-    steps.push({go:"drill",t:"Дрилл на скорость",done:!!(S.pat[id]&&S.pat[id].box>0)});
-    steps.push({go:"listen",t:"На слух",done:!!(S.lis[id]&&S.lis[id].box>0)});
-    steps.push({go:"voice",t:"Голос",done:!!(S.voc[id]&&S.voc[id].box>0)});
+    steps.push({go:"drill",t:"Дрилл на скорость",short:"Дрилл",done:!!(S.pat[id]&&S.pat[id].box>0)});
+    steps.push({go:"listen",t:"На слух",short:"На слух",done:!!(S.lis[id]&&S.lis[id].box>0)});
+    steps.push({go:"voice",t:"Голос",short:"Голос",done:!!(S.voc[id]&&S.voc[id].box>0)});
   }
   return steps;
 }
@@ -3640,21 +3645,18 @@ function mapNode(n,expanded){
   if(expanded&&n.kind==="lesson"){
     const p=PLAN[n.day-1];
     extra='<div class="mexp">'+
-      nodeSteps(n.id).map(x=>
-        '<div class="steprow" data-go="'+x.go+'" data-lid="'+n.id+'">'+
-        '<div class="stepmark'+(x.done?" ok":"")+'">'+(x.done?"\u2713":"")+'</div>'+
-        '<div style="flex:1;min-width:0"><div class="stept">'+esc(x.t)+'</div></div>'+
-        '<div class="chev">'+ICON.chevR+'</div></div>').join("")+
-      '<button class="theorylink" data-go="lesson" data-lid="'+n.id+'">Открыть теорию урока'+ICON.chevR+'</button>'+
-      (p?'<div class="goal" style="margin:12px 0 2px"><b>Задание вслух.</b> '+esc(p.g)+
-        (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>':"")+
+      '<div class="chips">'+nodeSteps(n.id).map(x=>
+        '<button class="chip'+(x.done?" done":"")+'" data-go="'+x.go+'" data-lid="'+n.id+'">'+
+        '<i>'+(x.done?"\u2713":"")+'</i>'+esc(x.short)+'</button>').join("")+'</div>'+
+      (p?'<div class="goal"><b>Вслух.</b> '+esc(p.g)+
+        (p.ex?'<div class="gex">'+p.ex.map(esc).join(" · ")+'</div>':"")+'</div>':"")+
       '</div>';
   }
   if(expanded&&n.kind==="rest"){
     const p=PLAN[n.day-1];
     extra='<div class="mexp"><p class="small" style="margin:0 0 10px">Сегодня без нового материала: только повтор и разговор вслух. Это не пропуск — так выученное успевает осесть, а очередь повторов разгребается.</p>'+
-      (p?'<div class="goal" style="margin:0 0 12px"><b>Задание вслух.</b> '+esc(p.g)+
-        (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>':"")+
+      (p?'<div class="goal" style="margin:0 0 10px"><b>Вслух.</b> '+esc(p.g)+
+        (p.ex?'<div class="gex">'+p.ex.map(esc).join(" · ")+'</div>':"")+'</div>':"")+
       '<button class="btn sec" data-rest="'+n.idx+'">Всё, день закрыт</button></div>';
   }
   return '<div class="mrow'+(expanded?" expanded":"")+'">'+
