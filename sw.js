@@ -1,6 +1,6 @@
 /* English Trainer — офлайн-кэш.
    Меняй CACHE при каждом обновлении файлов, иначе телефон покажет старую версию. */
-const CACHE = "english-trainer-v1";
+const CACHE = "english-trainer-v2";
 const ASSETS = [
   "./",
   "./index.html",
