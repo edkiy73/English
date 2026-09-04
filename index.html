@@ -187,6 +187,42 @@ tr:last-child td{border-bottom:0}
 .rurow:last-child{border-bottom:0}
 .rurow b{display:block;font-size:14.5px;font-weight:600;line-height:1.35}
 .rurow span{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.35}
+.map{position:relative;padding:4px 0 4px 0}
+.map:before{
+  content:"";position:absolute;left:21px;top:26px;bottom:26px;width:2px;
+  background:var(--border);border-radius:2px;
+}
+.mnode{
+  position:relative;display:flex;align-items:center;gap:14px;
+  padding:9px 12px 9px 0;margin-bottom:2px;border-radius:var(--r);
+}
+.mnode[data-mles],.mnode[data-dia],.mnode[data-ai]{cursor:pointer}
+.mnode[data-mles]:active,.mnode[data-dia]:active,.mnode[data-ai]:active{background:var(--elev)}
+.mcircle{
+  position:relative;z-index:1;flex:0 0 44px;width:44px;height:44px;
+  border-radius:50%;box-sizing:border-box;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:600;line-height:1;
+  background:var(--bg);border:2px solid var(--border);color:var(--muted);
+}
+.mnode.done .mcircle{background:var(--ok);border-color:var(--ok);color:#fff}
+.mnode.cur .mcircle{
+  background:var(--accent);border-color:var(--accent);color:#fff;
+  box-shadow:0 0 0 5px var(--accent-soft);
+}
+.mnode.open .mcircle{border-color:var(--accent);color:var(--accent)}
+.mnode.future .mcircle{opacity:.55}
+.mnode.rest .mcircle{width:30px;height:30px;flex:0 0 30px;margin-left:7px;font-size:18px}
+.mnode.dia .mcircle,.mnode.ai .mcircle{width:34px;height:34px;flex:0 0 34px;margin-left:5px;font-size:13px}
+.mnode.dia.open .mcircle,.mnode.ai.open .mcircle{background:var(--accent-soft)}
+.mbody{flex:1;min-width:0}
+.mkind{font-size:11px;color:var(--faint);letter-spacing:.01em}
+.mtitle{font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.3;margin-top:1px}
+.mnode.future .mtitle,.mnode.future .msub{opacity:.55}
+.msub{font-size:12.5px;color:var(--muted);margin-top:1px;line-height:1.3}
+.mdots{display:flex;gap:4px;margin-top:7px}
+.mdots i{width:16px;height:4px;border-radius:2px;background:var(--elev);display:block}
+.mdots i.on{background:var(--ok)}
 .steprow{
   display:flex;align-items:center;gap:11px;padding:11px 2px;
   border-top:1px solid var(--border);cursor:pointer;
@@ -2734,7 +2770,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.6";
+const BUILD="2026-09-04.8";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3027,12 +3063,11 @@ function addTranslators(root){
       if(open){el.nextElementSibling.remove();btn.classList.remove("on");return;}
       const box=document.createElement("div");
       box.className="rublock";
-      box.innerHTML=parts.map(pt=>{
+      const rows=parts.map(pt=>{
         const ru=phraseRu(pt);
-        const ww=ru?null:wordByWord(pt);
-        return '<div class="rurow"><b>'+esc(pt)+'</b><span>'+
-          (ru?esc(ru):(ww&&ww.length?esc(ww.join(" · ")):"нет перевода"))+'</span></div>';
-      }).join("");
+        return ru?'<div class="rurow"><b>'+esc(pt)+'</b><span>'+esc(ru)+'</span></div>':"";
+      }).filter(Boolean);
+      box.innerHTML=rows.length?rows.join(""):'<div class="rurow"><span>Перевода для этих фраз пока нет.</span></div>';
       el.parentNode.insertBefore(box,el.nextSibling);
       btn.classList.add("on");
     };
@@ -3169,16 +3204,13 @@ function openWord(word,el){
     shown[k]=1;return true;
   }).slice(0,2);
   const pru=phrase?phraseRu(phrase):null;
-  const pww=(phrase&&!pru)?wordByWord(phrase):[];
   sheet.innerHTML='<div class="grab"></div><div class="word">'+esc(word)+'</div>'+
     (d?'<div class="ipa">['+esc(d[1])+']</div><div class="rus">'+esc(d[2])+'</div><div class="tr">'+esc(d[0])+'</div>'
       :'<div class="miss">Этого слова нет в мини-словаре, но произношение работает.</div>')+
-    (phrase?'<div class="sx"><div class="small" style="margin-bottom:6px">Фраза целиком</div>'+
+    (phrase&&pru?'<div class="sx"><div class="small" style="margin-bottom:6px">Фраза целиком</div>'+
       '<div class="sxi"><div class="sxe">'+esc(phrase)+
       '<button class="spk" style="position:static;margin-left:8px" id="phSay">'+ICON.sound+'</button></div>'+
-      (pru?'<div class="sxr">'+esc(pru)+'</div>'
-          :(pww.length?'<div class="sxr">'+esc(pww.join(" · "))+'</div>'
-                      :'<div class="sxr">перевода этой фразы пока нет — тапни по отдельным словам</div>'))+
+      (pru?'<div class="sxr">'+esc(pru)+'</div>':'')+
       '</div></div>':"")+
     (exs.length?'<div class="sx"><div class="small" style="margin-bottom:6px">'+
       (phrase?'Другие примеры с этим словом':'Примеры')+'</div>'+exs.map((e,i)=>
@@ -3213,7 +3245,7 @@ app.addEventListener("click",e=>{
 },true);
 
 /* ================= роутер ================= */
-let view={n:"lessons"},drill=null,homeMode="plan",bankTab=0,hideTr=false;
+let view={n:"lessons"},drill=null,homeMode="today",bankTab=0,hideTr=false;
 let stack=[{view:{n:"lessons"}}];
 function pushHist(entry){
   stack.push(entry);
@@ -3365,60 +3397,164 @@ function todayCard(id){
   return h+'</div>';
 }
 function viewLessons(){
-  const d=dueCards().length,p=currentPlan(),dn=dayIndex(p);
+  const d=dueCards().length+patDue().length+vocDue().length+lisDue().length+wordsDue().length;
+  const p=currentPlan(),dn=dayIndex(p),cd2=dn;
   setHead("English Trainer",(S.streak||0)+" дн. подряд");
   let h="";
-  if(S.total===0){
-    h+='<div class="card"><div class="t" style="font-weight:600;font-size:16px;margin-bottom:6px">Курс на '+PLAN.length+' дней</div>'+
-       '<p class="small" style="margin:0 0 8px">'+LESSONS.length+' уроков, по одному в день, плюс дни без нового материала — они нужны, чтобы догнали повторы. Тапни на любое английское слово: оно произнесётся и покажет перевод с транскрипцией.</p>'+
-       '<p class="small" style="margin:0">Каждый урок идёт четырьмя шагами: теория, разбор, дрилл на скорость и проговаривание в микрофон. Подробнее — во вкладке «Прогресс».</p></div>';
+
+  /* ---------- подэкраны: план, темы, диалоги, ИИ ---------- */
+  if(homeMode!=="today"){
+    h+='<button class="back" data-h="today">'+ICON.chevL+'Сегодня</button>';
+    if(homeMode==="map"){
+      const nodes=mapNodes();
+      const doneCount=nodes.filter(n=>n.state==="done").length;
+      h+='<h2 style="margin-top:8px">Карта курса</h2>'+
+         '<p class="small" style="margin-bottom:16px">'+doneCount+' из '+nodes.length+' точек пройдено. Уроки идут по дням, между ними — дни без нового материала, диалоги и разговоры с ИИ.</p>'+
+         '<div class="map">'+nodes.map(mapNode).join("")+'</div>';
+    }
+    if(homeMode==="plan"){
+      h+='<h2 style="margin-top:8px">Весь план</h2>'+
+         '<p class="small" style="margin-bottom:16px">'+PLAN.length+' дней. Дни без уроков нужны, чтобы догнали повторы — пропускать их не стоит.</p>';
+      PLAN.forEach((x,idx)=>{
+        const done=dayDone(x),cur=x===p;
+        const names=x.ids.length?x.ids.map(id=>esc(byId(id).t)).join(", "):"повтор и разговор";
+        h+='<div class="row" data-day="'+idx+'" style="padding:11px 14px">'+
+          '<div class="mark '+(done?"done":(cur?"cur":""))+'" style="'+MARKST+'">'+(done?"\u2713":(idx+1))+'</div>'+
+          '<div class="body"><div class="t" style="font-size:14.5px;font-weight:500">'+names+'</div></div>'+
+          (x.ids.length?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
+      });
+    }
+    if(homeMode==="tags"){
+      h+='<h2 style="margin-top:8px">Темы</h2>'+
+         '<p class="small" style="margin-bottom:16px">Все уроки курса, сгруппированные по смыслу. Можно открыть любой в любое время.</p>';
+      const g={};LESSONS.forEach(l=>{(TAGS[l.id]||["прочее"]).forEach(t=>{(g[t]=g[t]||[]).push(l);});});
+      Object.keys(g).forEach(t=>{h+='<div class="label">'+esc(t)+'</div>'+g[t].map(lessonRow).join("");});
+    }
+    if(homeMode==="dia"){
+      h+='<h2 style="margin-top:8px">Диалоги</h2>'+
+         '<p class="small" style="margin-bottom:16px">Собеседник говорит — ты отвечаешь голосом или текстом. Открываются по мере прохождения курса.</p>';
+      DIALOGS.forEach(D=>{
+        const open=cd2>=D.day,done=!!S.dia[D.id];
+        h+='<div class="row"'+(open?' data-dia="'+D.id+'"':' style="opacity:.5"')+'>'+
+          '<div class="mark '+(done?"done":"")+'" style="'+MARKST+'">'+(done?"\u2713":"")+'</div>'+
+          '<div class="body"><div class="t">'+esc(D.t)+'</div>'+
+          '<div class="s">'+(open?D.lines.length+' реплик'+(done&&S.dia[D.id].score!==undefined?' · '+S.dia[D.id].score+'%':''):'откроется на '+D.day+'-й день')+'</div></div>'+
+          (open?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
+      });
+    }
+    if(homeMode==="ai"){
+      h+='<h2 style="margin-top:8px">Разговор с ИИ</h2>'+
+         '<p class="small" style="margin-bottom:16px">Живой диалог с Gemini на английском — без сценария. Копируешь промпт, вставляешь в Gemini и говоришь.</p>';
+      AI_TALKS.forEach(t=>{
+        const openA=cd2>=t.day,doneA=!!S.ai[t.id];
+        h+='<div class="row"'+(openA?' data-ai="'+t.id+'"':' style="opacity:.5"')+'>'+
+          '<div class="mark '+(doneA?"done":"")+'" style="'+MARKST+'">'+(doneA?"\u2713":"")+'</div>'+
+          '<div class="body"><div class="t">'+esc(t.title)+'</div>'+
+          '<div class="s">'+(openA?"промпт — копируй и говори с Gemini":"откроется на "+t.day+"-й день")+'</div></div>'+
+          (openA?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
+      });
+    }
+    app.innerHTML=h;
+    wireHome();
+    return;
   }
-  if(d>0)h+='<button class="btn" id="goRev">'+ICON.repeat+' Повтор: '+d+' '+plural(d,"карточка","карточки","карточек")+'</button><div style="height:18px"></div>';
-  h+='<div class="label">День '+dn+' из '+PLAN.length+'</div>';
-  h+=p.ids.length?p.ids.map(id=>todayCard(id)).join(""):'<p class="small">Новых уроков сегодня нет — только повтор.</p>';
+
+  /* ---------- главный экран: только сегодняшний день ---------- */
+  if(S.total===0){
+    h+='<div class="card"><div class="t" style="font-weight:600;font-size:16px;margin-bottom:6px">С чего начать</div>'+
+       '<p class="small" style="margin:0 0 8px">Курс на '+PLAN.length+' дней: каждый день один урок из четырёх шагов — теория, разбор, дрилл на скорость, голос. Занимает 20–25 минут.</p>'+
+       '<p class="small" style="margin:0">Просто открывай шаги сверху вниз. Всё остальное появится само, когда придёт время.</p></div>';
+  }
+  if(d>0){
+    h+='<button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button><div style="height:18px"></div>';
+  }
+  h+='<div class="label">Сегодня · день '+dn+' из '+PLAN.length+'</div>';
+  h+=p.ids.length?p.ids.map(id=>todayCard(id)).join(""):
+     '<div class="card"><p style="margin:0 0 6px;font-weight:600">День без нового урока</p>'+
+     '<p class="small" style="margin:0">Сегодня только повтор и разговор вслух — так выученное успевает осесть.</p></div>';
   h+='<div class="goal"><b>Задание вслух.</b> '+esc(p.g)+
      (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>';
-  const cd2=dayIndex(currentPlan());
-  h+='<div class="label">Диалоги</div>'+
-     '<p class="small" style="margin-bottom:12px">Собеседник говорит — ты отвечаешь голосом или текстом. Открываются по мере прохождения курса.</p>';
-  DIALOGS.forEach(D=>{
-    const open=cd2>=D.day,done=!!S.dia[D.id];
-    h+='<div class="row"'+(open?' data-dia="'+D.id+'"':' style="opacity:.5"')+'>'+
-      '<div class="mark '+(done?"done":"")+'" style="'+MARKST+'">'+(done?"\u2713":"")+'</div>'+
-      '<div class="body"><div class="t">'+esc(D.t)+'</div>'+
-      '<div class="s">'+(open?D.lines.length+' реплик'+(done&&S.dia[D.id].score!==undefined?' · '+S.dia[D.id].score+'%':''):'откроется на '+D.day+'-й день')+'</div></div>'+
-      (open?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
-  });
-  h+='<div class="label">Разговор с ИИ</div>'+
-     '<p class="small" style="margin-bottom:12px">Живой диалог с Gemini на английском — без сценария, с настоящей непредсказуемостью. Открывается по мере прохождения курса, всегда на дне без нового урока.</p>';
-  AI_TALKS.forEach(t=>{
-    const openA=cd2>=t.day,doneA=!!S.ai[t.id];
-    h+='<div class="row"'+(openA?' data-ai="'+t.id+'"':' style="opacity:.5"')+'>'+
-      '<div class="mark '+(doneA?"done":"")+'" style="'+MARKST+'">'+(doneA?"\u2713":"")+'</div>'+
-      '<div class="body"><div class="t">'+esc(t.title)+'</div>'+
-      '<div class="s">'+(openA?"промпт — копируй и говори с Gemini":"откроется на "+t.day+"-й день")+'</div></div>'+
-      (openA?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
-  });
-  h+='<div class="seg"><button data-h="plan" class="'+(homeMode==="plan"?"on":"")+'">План</button>'+
-     '<button data-h="tags" class="'+(homeMode==="tags"?"on":"")+'">Темы</button></div>';
-  if(homeMode==="plan"){
-    PLAN.forEach((x,idx)=>{
-      const done=dayDone(x),cur=x===p;
-      const names=x.ids.length?x.ids.map(id=>esc(byId(id).t)).join(", "):"повтор и разговор";
-      h+='<div class="row" data-day="'+idx+'" style="padding:11px 14px">'+
-        '<div class="mark '+(done?"done":(cur?"cur":""))+'" style="'+MARKST+'">'+(done?"\u2713":(idx+1))+'</div>'+
-        '<div class="body"><div class="t" style="font-size:14.5px;font-weight:500">'+names+'</div></div>'+
-        (x.ids.length?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
-    });
-    h+='<p class="small" style="margin-top:14px">Дни без уроков нужны, чтобы повторы догнали. Пропускать их — терять половину пользы.</p>';
-  }else{
-    const g={};LESSONS.forEach(l=>{(TAGS[l.id]||["прочее"]).forEach(t=>{(g[t]=g[t]||[]).push(l);});});
-    Object.keys(g).forEach(t=>{h+='<div class="label">'+esc(t)+'</div>'+g[t].map(lessonRow).join("");});
-  }
+
+  /* кусок карты вокруг текущего дня */
+  const nodes=mapNodes();
+  let ci=nodes.findIndex(n=>n.state==="cur");
+  if(ci<0)ci=0;
+  const from=Math.max(0,ci-1),slice=nodes.slice(from,from+5);
+  h+='<div class="label">Карта курса</div>'+
+     '<div class="map">'+slice.map(mapNode).join("")+'</div>'+
+     '<div style="height:10px"></div>'+
+     '<button class="btn sec" data-h="map">Вся карта курса</button>'+
+     '<div style="height:10px"></div>'+
+     '<button class="btn ghost" data-h="tags">Все темы списком</button>';
   app.innerHTML=h;
   const gr=document.getElementById("goRev");if(gr)gr.onclick=()=>go({n:"review"});
-  app.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{homeMode=b.dataset.h;render();});
+  wireHome();
+}
+/* карта курса: маршрут по дням, на нём уроки, диалоги и разговоры с ИИ */
+function mapNodes(){
+  const cur=dayIndex(currentPlan()),out=[];
+  PLAN.forEach((p,idx)=>{
+    const day=idx+1;
+    if(p.ids.length){
+      const id=p.ids[0],l=byId(id),sp=lessonSteps(id),done=lessonComplete(id);
+      out.push({kind:"lesson",day:day,id:id,title:l.t,sub:l.s,
+        state:done?"done":(day===cur?"cur":(day<cur?"open":"future")),
+        steps:sp});
+    }else{
+      out.push({kind:"rest",day:day,title:"День без урока",sub:"повтор и разговор вслух",
+        state:day<cur?"done":(day===cur?"cur":"future")});
+    }
+    DIALOGS.filter(D=>D.day===day).forEach(D=>{
+      out.push({kind:"dia",day:day,id:D.id,title:D.t,sub:D.lines.length+" реплик",
+        state:S.dia[D.id]?"done":(cur>=D.day?"open":"future")});
+    });
+    AI_TALKS.filter(t=>t.day===day).forEach(t=>{
+      out.push({kind:"ai",day:day,id:t.id,title:t.title,sub:"разговор с Gemini",
+        state:S.ai[t.id]?"done":(cur>=t.day?"open":"future")});
+    });
+  });
+  return out;
+}
+function mapIcon(n){
+  if(n.state==="done")return "\u2713";
+  if(n.kind==="dia")return "\u25CF";
+  if(n.kind==="ai")return "\u2726";
+  if(n.kind==="rest")return "\u00B7";
+  return n.day;
+}
+function mapNode(n){
+  const cls="mnode "+n.kind+" "+n.state;
+  const tap=(n.state!=="future")&&(n.kind==="lesson"||n.kind==="dia"||n.kind==="ai");
+  const attr=tap?(n.kind==="lesson"?' data-mles="'+n.id+'"':(n.kind==="dia"?' data-dia="'+n.id+'"':' data-ai="'+n.id+'"')):"";
+  let dots="";
+  if(n.kind==="lesson"&&n.steps){
+    dots='<div class="mdots">';
+    for(let i=0;i<n.steps.n;i++)dots+='<i class="'+(i<n.steps.done?"on":"")+'"></i>';
+    dots+='</div>';
+  }
+  const kindLabel=n.kind==="dia"?"диалог":(n.kind==="ai"?"разговор с ИИ":(n.kind==="rest"?"":"день "+n.day));
+  return '<div class="'+cls+'"'+attr+'>'+
+    '<div class="mcircle">'+mapIcon(n)+'</div>'+
+    '<div class="mbody">'+
+      (kindLabel?'<div class="mkind">'+esc(kindLabel)+'</div>':'')+
+      '<div class="mtitle">'+esc(n.title)+'</div>'+
+      '<div class="msub">'+esc(n.sub||"")+'</div>'+dots+
+    '</div>'+
+    (tap?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
+}
+function homeLink(mode,title,sub){
+  return '<div class="row" data-h="'+mode+'" style="padding:13px 14px">'+
+    '<div class="body"><div class="t" style="font-size:15px">'+esc(title)+'</div>'+
+    '<div class="s">'+esc(sub)+'</div></div>'+
+    '<div class="chev">'+ICON.chevR+'</div></div>';
+}
+function wireHome(){
+  app.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{homeMode=b.dataset.h;window.scrollTo(0,0);render();});
   app.querySelectorAll("[data-les]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.les}));
+  app.querySelectorAll("[data-mles]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.mles}));
+  app.querySelectorAll("[data-dia]").forEach(el=>el.onclick=()=>startDia(el.dataset.dia));
+  app.querySelectorAll("[data-ai]").forEach(el=>el.onclick=()=>go({n:"ai",id:el.dataset.ai}));
+  app.querySelectorAll("[data-day]").forEach(el=>el.onclick=()=>{const x=PLAN[+el.dataset.day];if(x&&x.ids.length)go({n:"lesson",id:x.ids[0]});});
   app.querySelectorAll("[data-go]").forEach(el=>el.onclick=()=>{
     const what=el.dataset.go,lid=el.dataset.lid,l=byId(lid);
     if(what==="lesson")return go({n:"lesson",id:lid});
@@ -3428,12 +3564,6 @@ function viewLessons(){
     }
     startPat(lid,what);
   });
-  app.querySelectorAll("[data-dia]").forEach(el=>el.onclick=()=>startDia(el.dataset.dia));
-  app.querySelectorAll("[data-ai]").forEach(el=>el.onclick=()=>go({n:"ai",id:el.dataset.ai}));
-  app.querySelectorAll("[data-day]").forEach(el=>el.onclick=()=>{const x=PLAN[+el.dataset.day];if(x&&x.ids.length)go({n:"lesson",id:x.ids[0]});});
-}
-function stepMark(done,cur,n){
-  return '<div class="mark '+(done?"done":(cur?"cur":""))+'" style="'+MARKST+'">'+(done?"\u2713":n)+'</div>';
 }
 function viewLesson(id){
   const l=byId(id),st=lessonStat(l),p=PLAN.find(x=>x.ids.indexOf(id)>=0),pat=PATTERNS[id];
@@ -3982,11 +4112,13 @@ const PHRASE_RU={
 "terrible":"ужасно","not great":"так себе","okay":"нормально","pretty good":"неплохо",
 "really good":"очень хорошо","amazing":"потрясающе"
 };
+const PHRASE_KEY={};
+Object.keys(PHRASE_RU).forEach(k=>{
+  PHRASE_KEY[bare(norm(k)).replace(/\s+/g," ").trim()]=PHRASE_RU[k];
+});
 function phraseRu(t){
   const k=bare(norm(t)).replace(/\s+/g," ").trim();
-  if(PHRASE_RU[k])return PHRASE_RU[k];
-  const k2=k.replace(/[…\u2026]/g,"").trim();
-  if(PHRASE_RU[k2])return PHRASE_RU[k2];
+  if(PHRASE_KEY[k])return PHRASE_KEY[k];
   // ищем среди пар «фраза — перевод», собранных из заданий и теории
   const pool=buildExamples();
   for(const p of pool){
