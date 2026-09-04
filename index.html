@@ -225,12 +225,12 @@ tr:last-child td{border-bottom:0}
   display:flex;flex-direction:column;justify-content:flex-end;
   transition:max-height .5s cubic-bezier(.4,0,.2,1);
 }
-.pastwrap.collapsed{max-height:var(--collapsedH,108px)}
+.pastwrap.collapsed{max-height:var(--collapsedH,156px)}
 .pastwrap:after{
-  content:"";position:absolute;left:0;right:0;top:0;pointer-events:none;
-  height:var(--peek,60px);
+  content:"";position:absolute;left:0;right:0;top:0;pointer-events:none;z-index:3;
+  height:var(--peek,88px);
   opacity:0;transition:opacity .35s ease;
-  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 42%,transparent 100%);
+  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 30%,transparent 100%);
 }
 .pastwrap.collapsed:after{opacity:1}
 .pastlink{
@@ -2837,7 +2837,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.16";
+const BUILD="2026-09-04.17";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3553,7 +3553,7 @@ function viewLessons(){
   if(d>0){
     h+='<div style="height:14px"></div><button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button>';
   }
-  h+='<div class="label">День '+dn+' из '+PLAN.length+'</div>';
+  h+='<div style="height:14px"></div>';
 
   /* карта целиком: прошлое свёрнуто под градиентом, сегодня раскрыт */
   const nodes=mapNodes();
@@ -3674,8 +3674,9 @@ function fitPast(box){
   if(!last)return;
   const h=last.getBoundingClientRect().height;
   if(!h)return;
-  box.style.setProperty("--collapsedH",Math.round(h*1.55)+"px");
-  box.style.setProperty("--peek",Math.round(h*0.62)+"px");
+  // два последних узла целиком: ближний читается, верхний плавно растворяется в фоне
+  box.style.setProperty("--collapsedH",Math.round(h*2)+"px");
+  box.style.setProperty("--peek",Math.round(h*1.05)+"px");
 }
 function wirePast(){
   if(pastScroll){window.removeEventListener("scroll",pastScroll);pastScroll=null;}
