@@ -225,14 +225,12 @@ tr:last-child td{border-bottom:0}
   display:flex;flex-direction:column;justify-content:flex-end;
   transition:max-height .5s cubic-bezier(.4,0,.2,1);
 }
-.pastwrap.collapsed{max-height:108px}
+.pastwrap.collapsed{max-height:var(--collapsedH,108px)}
 .pastwrap:after{
-  content:"";position:absolute;left:0;right:0;top:0;height:76px;pointer-events:none;
+  content:"";position:absolute;left:0;right:0;top:0;pointer-events:none;
+  height:var(--peek,60px);
   opacity:0;transition:opacity .35s ease;
-  background:linear-gradient(to bottom,
-    var(--bg) 0%,var(--bg) 34%,
-    color-mix(in srgb,var(--bg) 55%,transparent) 68%,
-    transparent 100%);
+  background:linear-gradient(to bottom,var(--bg) 0%,var(--bg) 42%,transparent 100%);
 }
 .pastwrap.collapsed:after{opacity:1}
 .pastlink{
@@ -2839,7 +2837,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.15";
+const BUILD="2026-09-04.16";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -3415,14 +3413,8 @@ function lessonComplete(id){
   return !!(S.pat[id]&&S.pat[id].box>0)&&!!(S.lis[id]&&S.lis[id].box>0)&&!!(S.voc[id]&&S.voc[id].box>0);
 }
 function lessonSteps(id){
-  const st=lessonStat(byId(id)),n=PATTERNS[id]?4:1;
-  let done=(st.started===st.total?1:0);
-  if(PATTERNS[id]){
-    if(S.pat[id]&&S.pat[id].box>0)done++;
-    if(S.lis[id]&&S.lis[id].box>0)done++;
-    if(S.voc[id]&&S.voc[id].box>0)done++;
-  }
-  return {done:done,n:n};
+  const st=nodeSteps(id);
+  return {done:st.filter(x=>x.done).length,n:st.length};
 }
 function dayDone(p){return p.ids.length>0&&p.ids.every(lessonComplete);}
 function currentPlan(){
@@ -3676,10 +3668,21 @@ function homeLink(mode,title,sub){
     '<div class="s">'+esc(sub)+'</div></div>'+
     '<div class="chev">'+ICON.chevR+'</div></div>';
 }
+function fitPast(box){
+  // высота свёрнутого блока = полтора последних узла, чтобы обрезка не рвала строку
+  const last=box.lastElementChild;
+  if(!last)return;
+  const h=last.getBoundingClientRect().height;
+  if(!h)return;
+  box.style.setProperty("--collapsedH",Math.round(h*1.55)+"px");
+  box.style.setProperty("--peek",Math.round(h*0.62)+"px");
+}
 function wirePast(){
   if(pastScroll){window.removeEventListener("scroll",pastScroll);pastScroll=null;}
   const btn=document.getElementById("pastToggle"),box=document.getElementById("pastwrap");
   if(!btn||!box)return;
+  fitPast(box);
+  requestAnimationFrame(()=>fitPast(box));
   btn.onclick=()=>{
     pastOpen=!pastOpen;
     box.classList.toggle("collapsed",!pastOpen);
