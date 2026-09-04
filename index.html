@@ -187,6 +187,29 @@ tr:last-child td{border-bottom:0}
 .rurow:last-child{border-bottom:0}
 .rurow b{display:block;font-size:14.5px;font-weight:600;line-height:1.35}
 .rurow span{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.35}
+.mrow{position:relative}
+.mrow.expanded{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  margin:6px 0 10px;padding:4px 0 12px;box-shadow:var(--shadow);
+}
+.mrow.expanded .mnode{padding-right:14px}
+.mexp{padding:2px 14px 0 58px}
+.mexp .steprow{border-top:1px solid var(--border);padding:10px 0}
+.mexp .steprow:first-child{border-top:1px solid var(--border)}
+.pastwrap{position:relative;overflow:hidden;transition:max-height .3s ease}
+.pastwrap.collapsed{max-height:72px}
+.pastwrap.collapsed:after{
+  content:"";position:absolute;left:0;right:0;top:0;height:72px;pointer-events:none;
+  background:linear-gradient(to bottom,var(--bg) 18%,rgba(255,255,255,0) 100%);
+}
+[data-theme="dark"] .pastwrap.collapsed:after{
+  background:linear-gradient(to bottom,var(--bg) 18%,rgba(9,9,11,0) 100%);
+}
+.pastlink{
+  display:block;margin:2px auto 10px;background:none;border:0;cursor:pointer;
+  font-family:inherit;font-size:12.5px;color:var(--faint);padding:4px 10px;
+}
+.pastlink:active{color:var(--muted)}
 .labelrow{display:flex;align-items:baseline;justify-content:space-between;margin:28px 0 10px}
 .linkbtn{
   display:inline-flex;align-items:center;gap:2px;background:none;border:0;padding:0;
@@ -2782,7 +2805,7 @@ const ICON={
 };
 
 /* ================= хранилище ================= */
-const BUILD="2026-09-04.10";
+const BUILD="2026-09-04.11";
 const KEY="eng-trainer-v2";
 let mem=null,S=null;
 async function loadState(){
@@ -2791,7 +2814,7 @@ async function loadState(){
   if(raw===null){ try{raw=localStorage.getItem(KEY);}catch(e){} }
   if(raw===null&&mem)raw=mem;
   let s=null; try{s=raw?JSON.parse(raw):null;}catch(e){}
-  return Object.assign({srs:{},pat:{},voc:{},lis:{},err:{},words:{},dia:{},speed:{},day:null,streak:0,total:0,right:0,theme:null},s||{});
+  return Object.assign({srs:{},pat:{},voc:{},lis:{},err:{},words:{},dia:{},ai:{},rest:{},speed:{},day:null,streak:0,total:0,right:0,theme:null},s||{});
 }
 async function saveState(){
   const raw=JSON.stringify(S); mem=raw;
@@ -3096,7 +3119,10 @@ function addSpeakers(root){
     el.appendChild(b);
   });
 }
-function decorate(){ttsify(app);addSpeakers(app);addTranslators(app);}
+function decorate(){
+  if(view.n!=="lessons")ttsify(app);   // на карте тап по слову мешает нажимать узлы
+  addSpeakers(app);addTranslators(app);
+}
 let sheetOpen=false;
 let EXPOOL=null;
 /* блок теории вида "A · B · C" с переводом "A' · B' · C'" режем на отдельные пары */
@@ -3258,6 +3284,7 @@ app.addEventListener("click",e=>{
 
 /* ================= роутер ================= */
 let view={n:"lessons"},drill=null,homeMode="today",bankTab=0,hideTr=false;
+let pastOpen=false,pastScroll=null;
 let stack=[{view:{n:"lessons"}}];
 function pushHist(entry){
   stack.push(entry);
@@ -3304,7 +3331,7 @@ function renderCrash(e){
   };
 }
 function sanitizeState(){
-  ["srs","pat","voc","lis","err","words","dia","ai","speed"].forEach(k=>{
+  ["srs","pat","voc","lis","err","words","dia","ai","rest","speed"].forEach(k=>{
     if(!S[k]||typeof S[k]!=="object")S[k]={};
   });
   if(typeof S.streak!=="number")S.streak=0;
@@ -3361,7 +3388,14 @@ function lessonSteps(id){
   return {done:done,n:n};
 }
 function dayDone(p){return p.ids.length>0&&p.ids.every(lessonComplete);}
-function currentPlan(){for(const p of PLAN){if(p.ids.length&&!dayDone(p))return p;}return PLAN[PLAN.length-1];}
+function currentPlan(){
+  for(let i=0;i<PLAN.length;i++){
+    const p=PLAN[i];
+    if(p.ids.length){if(!dayDone(p))return p;}
+    else if(!S.rest[i])return p;      // день без урока закрывается вручную
+  }
+  return PLAN[PLAN.length-1];
+}
 function tagLine(id){const t=TAGS[id]||[];return t.length?'<div class="tags">'+t.map(x=>'<span>'+esc(x)+'</span>').join("")+'</div>':"";}
 function lessonRow(l){
   const sp=lessonSteps(l.id),done=lessonComplete(l.id),pct=Math.round(sp.done/sp.n*100);
@@ -3485,21 +3519,21 @@ function viewLessons(){
   if(d>0){
     h+='<div style="height:14px"></div><button class="btn" id="goRev">'+ICON.repeat+' Сначала повтор: '+d+'</button>';
   }
-  h+='<div class="label">Сегодня · день '+dn+' из '+PLAN.length+'</div>';
-  h+=p.ids.length?p.ids.map(id=>todayCard(id)).join(""):
-     '<div class="card"><p style="margin:0 0 6px;font-weight:600">День без нового урока</p>'+
-     '<p class="small" style="margin:0">Сегодня только повтор и разговор вслух — так выученное успевает осесть.</p></div>';
-  h+='<div class="goal"><b>Задание вслух.</b> '+esc(p.g)+
-     (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>';
+  h+='<div class="labelrow"><span class="label" style="margin:0">День '+dn+' из '+PLAN.length+'</span>'+
+     '<button class="linkbtn" data-h="map">вся карта'+ICON.chevR+'</button></div>';
 
-  /* кусок карты вокруг текущего дня */
+  /* карта целиком: прошлое свёрнуто под градиентом, сегодня раскрыт */
   const nodes=mapNodes();
   let ci=nodes.findIndex(n=>n.state==="cur");
   if(ci<0)ci=0;
-  const from=Math.max(0,ci-1),slice=nodes.slice(from,from+5);
-  h+='<div class="labelrow"><span class="label" style="margin:0">Карта курса</span>'+
-     '<button class="linkbtn" data-h="map">вся карта'+ICON.chevR+'</button></div>'+
-     '<div class="map">'+slice.map(mapNode).join("")+'</div>';
+  const past=nodes.slice(0,ci),rest=nodes.slice(ci);
+  h+='<div class="map" id="map">';
+  if(past.length){
+    h+='<div class="pastwrap'+(pastOpen?"":" collapsed")+'" id="pastwrap">'+
+       past.map(n=>mapNode(n)).join("")+'</div>'+
+       '<button class="pastlink" id="pastToggle">'+(pastOpen?"скрыть пройденное":"показать пройденное")+'</button>';
+  }
+  h+=rest.map((n,i)=>mapNode(n,i===0)).join("")+'</div>';
   app.innerHTML=h;
   const gr=document.getElementById("goRev");if(gr)gr.onclick=()=>go({n:"review"});
   wireHome();
@@ -3515,8 +3549,8 @@ function mapNodes(){
         state:done?"done":(day===cur?"cur":(day<cur?"open":"future")),
         steps:sp});
     }else{
-      out.push({kind:"rest",day:day,title:"День без урока",sub:"повтор и разговор вслух",
-        state:day<cur?"done":(day===cur?"cur":"future")});
+      out.push({kind:"rest",day:day,idx:idx,title:"День без урока",sub:"повтор и разговор вслух",
+        state:S.rest[idx]?"done":(day===cur?"cur":(day<cur?"done":"future"))});
     }
     DIALOGS.filter(D=>D.day===day).forEach(D=>{
       out.push({kind:"dia",day:day,id:D.id,title:D.t,sub:D.lines.length+" реплик",
@@ -3536,7 +3570,25 @@ function mapIcon(n){
   if(n.kind==="rest")return "\u00B7";
   return n.day;
 }
-function mapNode(n){
+/* шаги сегодняшнего урока прямо в ленте карты, без теории — она не задание */
+function nodeSteps(id){
+  const l=byId(id),st=lessonStat(l),pat=PATTERNS[id],CH=10,steps=[];
+  if(l.cards.length<=12){
+    steps.push({go:"blk:0",t:"Разбор · "+l.cards.length+" заданий",done:st.started===st.total});
+  }else{
+    for(let k=0;k<l.cards.length;k+=CH){
+      const part=l.cards.slice(k,k+CH),seen=part.every((c,j)=>S.srs[key(id,k+j)]);
+      steps.push({go:"blk:"+k,t:"Разбор · блок "+(k/CH+1)+" ("+(k+1)+"–"+Math.min(k+CH,l.cards.length)+")",done:seen});
+    }
+  }
+  if(pat){
+    steps.push({go:"drill",t:"Дрилл на скорость",done:!!(S.pat[id]&&S.pat[id].box>0)});
+    steps.push({go:"listen",t:"На слух",done:!!(S.lis[id]&&S.lis[id].box>0)});
+    steps.push({go:"voice",t:"Голос",done:!!(S.voc[id]&&S.voc[id].box>0)});
+  }
+  return steps;
+}
+function mapNode(n,expanded){
   const cls="mnode k-"+n.kind+" m-"+n.state;
   const tap=(n.state!=="future")&&(n.kind==="lesson"||n.kind==="dia"||n.kind==="ai");
   const attr=tap?(n.kind==="lesson"?' data-mles="'+n.id+'"':(n.kind==="dia"?' data-dia="'+n.id+'"':' data-ai="'+n.id+'"')):"";
@@ -3547,14 +3599,40 @@ function mapNode(n){
     dots+='</div>';
   }
   const kindLabel=n.kind==="dia"?"диалог":(n.kind==="ai"?"разговор с ИИ":(n.kind==="rest"?"":"день "+n.day));
-  return '<div class="'+cls+'"'+attr+'>'+
-    '<div class="mcircle">'+mapIcon(n)+'</div>'+
-    '<div class="mbody">'+
-      (kindLabel?'<div class="mkind">'+esc(kindLabel)+'</div>':'')+
-      '<div class="mtitle">'+esc(n.title)+'</div>'+
-      '<div class="msub">'+esc(n.sub||"")+'</div>'+dots+
-    '</div>'+
-    (tap?'<div class="chev">'+ICON.chevR+'</div>':'')+'</div>';
+  let extra="";
+  if(expanded&&n.kind==="lesson"){
+    const p=PLAN[n.day-1];
+    extra='<div class="mexp">'+
+      nodeSteps(n.id).map(x=>
+        '<div class="steprow" data-go="'+x.go+'" data-lid="'+n.id+'">'+
+        '<div class="stepmark'+(x.done?" ok":"")+'">'+(x.done?"\u2713":"")+'</div>'+
+        '<div style="flex:1;min-width:0"><div class="stept">'+esc(x.t)+'</div></div>'+
+        '<div class="chev">'+ICON.chevR+'</div></div>').join("")+
+      '<div class="steprow" data-go="lesson" data-lid="'+n.id+'">'+
+        '<div class="stepmark"></div>'+
+        '<div style="flex:1"><div class="stept" style="color:var(--muted)">Открыть теорию урока</div></div>'+
+        '<div class="chev">'+ICON.chevR+'</div></div>'+
+      (p?'<div class="goal" style="margin:12px 0 2px"><b>Задание вслух.</b> '+esc(p.g)+
+        (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>':"")+
+      '</div>';
+  }
+  if(expanded&&n.kind==="rest"){
+    const p=PLAN[n.day-1];
+    extra='<div class="mexp"><p class="small" style="margin:0 0 10px">Сегодня без нового материала: только повтор и разговор вслух. Это не пропуск — так выученное успевает осесть, а очередь повторов разгребается.</p>'+
+      (p?'<div class="goal" style="margin:0 0 12px"><b>Задание вслух.</b> '+esc(p.g)+
+        (p.ex?'<div class="gex">'+p.ex.map(x=>'<div>'+esc(x)+'</div>').join("")+'</div>':"")+'</div>':"")+
+      '<button class="btn sec" data-rest="'+n.idx+'">Всё, день закрыт</button></div>';
+  }
+  return '<div class="mrow'+(expanded?" expanded":"")+'">'+
+    '<div class="'+cls+'"'+attr+'>'+
+      '<div class="mcircle">'+mapIcon(n)+'</div>'+
+      '<div class="mbody">'+
+        (kindLabel?'<div class="mkind">'+esc(kindLabel)+'</div>':'')+
+        '<div class="mtitle">'+esc(n.title)+'</div>'+
+        '<div class="msub">'+esc(n.sub||"")+'</div>'+(expanded?"":dots)+
+      '</div>'+
+      (tap?'<div class="chev">'+ICON.chevR+'</div>':'')+
+    '</div>'+extra+'</div>';
 }
 function homeLink(mode,title,sub){
   return '<div class="row" data-h="'+mode+'" style="padding:13px 14px">'+
@@ -3562,10 +3640,37 @@ function homeLink(mode,title,sub){
     '<div class="s">'+esc(sub)+'</div></div>'+
     '<div class="chev">'+ICON.chevR+'</div></div>';
 }
+function wirePast(){
+  if(pastScroll){window.removeEventListener("scroll",pastScroll);pastScroll=null;}
+  const btn=document.getElementById("pastToggle"),box=document.getElementById("pastwrap");
+  if(!btn||!box)return;
+  btn.onclick=()=>{
+    pastOpen=!pastOpen;
+    box.classList.toggle("collapsed",!pastOpen);
+    btn.textContent=pastOpen?"скрыть пройденное":"показать пройденное";
+    if(pastOpen){
+      const anchor=window.scrollY;
+      pastScroll=()=>{
+        // ушёл вниз по ленте — прошлое снова прячется
+        if(window.scrollY>anchor+340){
+          pastOpen=false;
+          box.classList.add("collapsed");
+          btn.textContent="показать пройденное";
+          window.removeEventListener("scroll",pastScroll);pastScroll=null;
+        }
+      };
+      window.addEventListener("scroll",pastScroll,{passive:true});
+    }
+  };
+}
 function wireHome(){
+  wirePast();
   app.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>{homeMode=b.dataset.h;window.scrollTo(0,0);render();});
   app.querySelectorAll("[data-les]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.les}));
   app.querySelectorAll("[data-mles]").forEach(el=>el.onclick=()=>go({n:"lesson",id:el.dataset.mles}));
+  app.querySelectorAll("[data-rest]").forEach(el=>el.onclick=()=>{
+    S.rest[el.dataset.rest]=today();saveState();window.scrollTo(0,0);render();
+  });
   app.querySelectorAll("[data-dia]").forEach(el=>el.onclick=()=>startDia(el.dataset.dia));
   app.querySelectorAll("[data-ai]").forEach(el=>el.onclick=()=>go({n:"ai",id:el.dataset.ai}));
   app.querySelectorAll("[data-day]").forEach(el=>el.onclick=()=>{const x=PLAN[+el.dataset.day];if(x&&x.ids.length)go({n:"lesson",id:x.ids[0]});});
@@ -4425,7 +4530,7 @@ function viewProgress(){
   const impF=document.getElementById("impFile");
   document.getElementById("impBtn").onclick=()=>impF.click();
   impF.onchange=e=>{const f=e.target.files&&e.target.files[0];if(f)importProgress(f);e.target.value="";};
-  document.getElementById("rst").onclick=()=>{if(confirm("Стереть весь прогресс?")){S.srs={};S.pat={};S.voc={};S.lis={};S.err={};S.dia={};S.ai={};S.speed={};S.total=0;S.right=0;S.streak=0;S.day=today();saveState();render();}};
+  document.getElementById("rst").onclick=()=>{if(confirm("Стереть весь прогресс?")){S.srs={};S.pat={};S.voc={};S.lis={};S.err={};S.dia={};S.ai={};S.rest={};S.speed={};S.total=0;S.right=0;S.streak=0;S.day=today();saveState();render();}};
 }
 
 /* ================= старт ================= */
